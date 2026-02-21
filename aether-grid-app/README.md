@@ -32,20 +32,20 @@ bun install
 bun run setup
 
 # Scaffold a game + dev frontend
-bun run create my-game
+bun run create eather-grid
 
 # Run the standalone dev frontend with testnet wallet switching
-bun run dev:game my-game
+bun run dev:game eather-grid
 ```
 
 ## Publish (Production)
 
 ```bash
 # Export a production container and build it (uses CreitTech wallet kit v2)
-bun run publish my-game --build
+bun run publish eather-grid --build
 
 # Update runtime config in the output
-# dist/my-game-frontend/public/game-studio-config.js
+# dist/eather-grid-frontend/public/game-studio-config.js
 ```
 
 ## Project Structure
@@ -66,9 +66,9 @@ bun run setup                         # Build + deploy testnet contracts, genera
 bun run build [game-name]             # Build all or selected contracts
 bun run deploy [game-name]            # Deploy all or selected contracts to testnet
 bun run bindings [game-name]          # Generate bindings for all or selected contracts
-bun run create my-game                # Scaffold contract + standalone frontend
-bun run dev:game my-game              # Run a standalone frontend with dev wallet switching
-bun run publish my-game --build       # Export + build production frontend
+bun run create eather-grid                # Scaffold contract + standalone frontend
+bun run dev:game eather-grid              # Run a standalone frontend with dev wallet switching
+bun run publish eather-grid --build       # Export + build production frontend
 ```
 
 ## Ecosystem Constraints
