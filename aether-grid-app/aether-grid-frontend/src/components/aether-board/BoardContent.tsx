@@ -4,6 +4,7 @@ import { BoardTiles } from './boardTiles';
 import { MapObjects } from './mapObjects';
 import { PlayerAvatar } from './player/PlayerAvatar';
 import { useAetherGameStore } from './game/gameStore';
+import { RadarAreaEffect, LineScanEffect, DrillEffect, DashTrail } from './effects';
 
 export interface BoardContentProps {
   map: MapTile[];
@@ -18,13 +19,30 @@ export function BoardContent({ map }: BoardContentProps) {
     hoveredTile,
     drilledTiles,
     playerTile,
+    activePower,
+    useRadar,
+    radarEffect,
+    scanLineEffect,
+    drillEffect,
+    dashTrailPositions,
   } = useAetherGameStore();
 
   const onTileClick = (tile: MapTile) => {
     const i = tile.position[0];
     const j = tile.position[2];
-    if (phase === 'SPAWN_SELECT') selectSpawn(i, j);
-    else if (phase === 'PLAYING') setTargetAndMove(i, j);
+    if (phase === 'SPAWN_SELECT') {
+      selectSpawn(i, j);
+      return;
+    }
+    if (phase === 'PLAYING') {
+      if (activePower === 'RADAR') {
+        useRadar(i, j);
+        return;
+      }
+      if (activePower === 'IMPULSE' || activePower === 'MOVE') {
+        setTargetAndMove(i, j);
+      }
+    }
   };
 
   const onTileHover = (tile: MapTile | null) => {
@@ -44,6 +62,10 @@ export function BoardContent({ map }: BoardContentProps) {
         playerTile={playerTile}
       />
       <MapObjects map={map} />
+      <RadarAreaEffect effect={radarEffect} />
+      <LineScanEffect effect={scanLineEffect} />
+      <DrillEffect effect={drillEffect} />
+      <DashTrail positions={dashTrailPositions} />
       <PlayerAvatar />
     </group>
   );

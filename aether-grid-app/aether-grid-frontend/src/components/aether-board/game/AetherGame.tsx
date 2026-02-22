@@ -7,7 +7,7 @@ import { AetherBoardScene } from '../AetherBoardScene';
  */
 export function AetherGame() {
   return (
-    <div className="aether-game" style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div className="aether-game" style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <GameOverlay />
       <AetherBoardScene />
     </div>

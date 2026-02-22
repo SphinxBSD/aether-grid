@@ -43,3 +43,62 @@ export function manhattanPath(
   }
   return path;
 }
+
+/** Los 8 vecinos (radio 1) de (i, j) dentro del grid */
+export function getNeighbors(i: number, j: number): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  for (let di = -1; di <= 1; di++) {
+    for (let dj = -1; dj <= 1; dj++) {
+      if (di === 0 && dj === 0) continue;
+      const ni = i + di;
+      const nj = j + dj;
+      if (ni >= 0 && ni < GRID_SIZE && nj >= 0 && nj < GRID_SIZE) out.push({ x: ni, y: nj });
+    }
+  }
+  return out;
+}
+
+export function isNeighbor(ax: number, ay: number, bx: number, by: number): boolean {
+  const dx = Math.abs(ax - bx);
+  const dy = Math.abs(ay - by);
+  return dx <= 1 && dy <= 1 && (dx !== 0 || dy !== 0);
+}
+
+/** Path en línea recta horizontal o vertical hasta la casilla destino (para Impulso). Cuesta siempre +2 energía. */
+export function straightLinePath(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number
+): Array<{ x: number; y: number }> {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  if (dx === 0 && dy === 0) return [];
+  if (dx !== 0 && dy !== 0) return [];
+  const stepX = dx === 0 ? 0 : dx > 0 ? 1 : -1;
+  const stepY = dy === 0 ? 0 : dy > 0 ? 1 : -1;
+  const path: Array<{ x: number; y: number }> = [];
+  let x = fromX;
+  let y = fromY;
+  while (x !== toX || y !== toY) {
+    x += stepX;
+    y += stepY;
+    if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return [];
+    path.push({ x, y });
+  }
+  return path;
+}
+
+/** Tiles de una fila (index 0..6) */
+export function getRowTiles(rowIndex: number): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  for (let j = 0; j < GRID_SIZE; j++) out.push({ x: rowIndex, y: j });
+  return out;
+}
+
+/** Tiles de una columna (index 0..6) */
+export function getColTiles(colIndex: number): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < GRID_SIZE; i++) out.push({ x: i, y: colIndex });
+  return out;
+}
