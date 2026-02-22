@@ -4,8 +4,6 @@ import { WalletSwitcher } from './WalletSwitcher';
 import './Layout.css';
 
 interface LayoutProps {
-  title?: string;
-  subtitle?: string;
   children?: React.ReactNode;
 }
 
@@ -46,9 +44,9 @@ function NavIcon({ name }: { name: (typeof navItems)[number]['icon'] }) {
   }
 }
 
-export function Layout({ title, subtitle, children }: LayoutProps) {
-  const resolvedTitle = title || import.meta.env.VITE_GAME_TITLE || 'Stellar Game';
-  const resolvedSubtitle = subtitle || import.meta.env.VITE_GAME_TAGLINE || 'Testnet dev sandbox';
+export function Layout({ children }: LayoutProps) {
+  // const resolvedTitle = title || import.meta.env.VITE_GAME_TITLE || 'Stellar Game';
+  // const resolvedSubtitle = subtitle || import.meta.env.VITE_GAME_TAGLINE || 'Testnet dev sandbox';
 
   return (
     <div className="appShell">
@@ -61,8 +59,8 @@ export function Layout({ title, subtitle, children }: LayoutProps) {
 
       <header className="appHeader">
         <div className="appHeader-brand">
-          <h1 className="appHeader-title">{resolvedTitle}</h1>
-          <p className="appHeader-subtitle">{resolvedSubtitle}</p>
+          {/* <h1 className="appHeader-title">{resolvedTitle}</h1> */}
+          {/* <p className="appHeader-subtitle">{resolvedSubtitle}</p> */}
         </div>
         <div className="appHeader-actions">
           {/* <TopChipsBar /> */}
@@ -77,7 +75,7 @@ export function Layout({ title, subtitle, children }: LayoutProps) {
       </main>
 
       <nav className="appNav" aria-label="Primary navigation">
-        <div className="appNav-inner">
+        <div className="appNav-inner"> 
           <ul className="appNav-list">
             {navItems.map((item) => (
               <li key={item.id}>

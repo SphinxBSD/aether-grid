@@ -45,7 +45,7 @@ export default function App() {
 
   if (notReadyContent) {
     return (
-      <Layout title={GAME_TITLE} subtitle={GAME_TAGLINE}>
+      <Layout>
         {notReadyContent}
       </Layout>
     );
@@ -53,7 +53,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Layout title={GAME_TITLE} subtitle={GAME_TAGLINE} />}>
+      <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="home" element={<HomePage />} />
         <Route path="match" element={<MatchPage />} />

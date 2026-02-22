@@ -1,4 +1,5 @@
 import './HomePage.css';
+import { AetherBoardScene } from './aether-board';
 
 export function HomePage() {
   return (
@@ -6,7 +7,7 @@ export function HomePage() {
       <div className="home-page-bg" aria-hidden="true" />
       <div className="home-page-scrim" aria-hidden="true" />
       <div className="home-page-content">
-
+        <AetherBoardScene />
       </div>
     </div>
   );
