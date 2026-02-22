@@ -30,6 +30,8 @@ frontend-template/*.tsbuildinfo
 *-frontend/dist-node/
 *-frontend/*.tsbuildinfo
 
+local-deployment.json
+
 # IDE
 .vscode/
 .idea/
