@@ -1,8 +1,19 @@
 /* -------------------------------------------------------------------------
-   App shell: responsive grid layout
-   Mobile (<=1023px): header | main | nav (bottom bar)
-   Desktop (>=1024px): nav (left column) | header + main (right)
+   App shell: tema espacial / futurista
+   Mobile: header | main | nav (barra inferior)
+   Desktop: nav (columna izq) | header + main
    ------------------------------------------------------------------------- */
+
+:root {
+  --layout-bg: #0a0e17;
+  --layout-surface: rgba(12, 18, 28, 0.92);
+  --layout-border: rgba(0, 212, 255, 0.25);
+  --layout-glow: rgba(0, 212, 255, 0.4);
+  --layout-accent: #00d4ff;
+  --layout-amber: #ffb347;
+  --layout-text: #e8ecf1;
+  --layout-text-muted: rgba(232, 236, 241, 0.7);
+}
 
 .appShell {
   position: relative;
@@ -10,8 +21,8 @@
   min-height: 100dvh;
   height: 100dvh;
   overflow: hidden;
-  color: var(--color-ink);
-  background: var(--color-bg);
+  color: var(--layout-text);
+  background: var(--layout-bg);
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
@@ -30,7 +41,7 @@
   }
 }
 
-/* Background layer (decorative, behind content) */
+/* Background */
 .appShell-background {
   position: fixed;
   inset: 0;
@@ -44,38 +55,38 @@
   height: 48vw;
   border-radius: 50%;
   filter: blur(60px);
-  opacity: 0.45;
+  opacity: 0.35;
   animation: appShell-float 22s ease-in-out infinite;
 }
 
 .appShell-orb.orb-1 {
   top: -15%;
   left: -10%;
-  background: radial-gradient(circle at 35% 35%, rgba(253, 218, 36, 0.7), transparent 65%);
+  background: radial-gradient(circle at 35% 35%, rgba(255, 179, 71, 0.5), transparent 65%);
   animation-delay: 0s;
 }
 
 .appShell-orb.orb-2 {
   right: -10%;
   top: -5%;
-  background: radial-gradient(circle at 65% 35%, rgba(183, 172, 232, 0.65), transparent 68%);
+  background: radial-gradient(circle at 65% 35%, rgba(0, 212, 255, 0.4), transparent 68%);
   animation-delay: -8s;
 }
 
 .appShell-orb.orb-3 {
   bottom: -25%;
   left: 25%;
-  background: radial-gradient(circle at 50% 50%, rgba(0, 167, 181, 0.55), transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(120, 80, 220, 0.35), transparent 70%);
   animation-delay: -14s;
 }
 
 .appShell-grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(90deg, rgba(15, 15, 15, 0.04) 1px, transparent 1px),
-    linear-gradient(rgba(15, 15, 15, 0.04) 1px, transparent 1px);
+  background-image: linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px);
   background-size: 140px 140px;
-  opacity: 0.35;
+  opacity: 0.5;
 }
 
 @keyframes appShell-float {
@@ -83,7 +94,7 @@
   50% { transform: translateY(16px) scale(1.04); }
 }
 
-/* Header */
+/* Header: barra superior oscura con borde neón */
 .appHeader {
   position: relative;
   z-index: 1;
@@ -94,8 +105,9 @@
   gap: 1rem;
   flex-wrap: wrap;
   padding: 1rem 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--color-bg);
+  background: var(--layout-surface);
+  border-bottom: 1px solid var(--layout-border);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.06);
 }
 
 @media (min-width: 1024px) {
@@ -109,15 +121,17 @@
 }
 
 .appHeader-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-serif, system-ui, sans-serif);
   font-size: clamp(1.5rem, 2.5vw + 0.75rem, 2.5rem);
   line-height: 1.15;
   margin: 0 0 0.25rem;
   font-weight: 600;
+  color: var(--layout-text);
+  letter-spacing: 0.02em;
 }
 
 .appHeader-subtitle {
-  color: var(--color-ink-muted);
+  color: var(--layout-text-muted);
   font-size: 0.95rem;
   margin: 0;
 }
@@ -130,23 +144,25 @@
 }
 
 .appHeader-pill {
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 999px;
-  border: 1px solid var(--color-ink);
+  border: 1px solid var(--layout-border);
   font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.9);
-  font-family: var(--font-display);
+  background: rgba(0, 212, 255, 0.08);
+  color: var(--layout-text);
+  font-family: var(--font-display, system-ui, sans-serif);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.08);
 }
 
 .appHeader-pill--dev {
-  border-color: rgba(0, 167, 181, 0.6);
-  background: rgba(0, 167, 181, 0.15);
-  color: var(--color-ink);
+  border-color: rgba(255, 179, 71, 0.4);
+  background: rgba(255, 179, 71, 0.1);
+  box-shadow: 0 0 12px rgba(255, 179, 71, 0.08);
 }
 
-/* Main content (scrollable) */
+/* Main */
 .appMain {
   position: relative;
   z-index: 1;
@@ -162,42 +178,135 @@
   }
 }
 
-/* Navigation */
+/* Navigation: barra inferior / columna lateral estilo espacial */
 .appNav {
   position: relative;
   z-index: 1;
   grid-area: nav;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--color-bg);
+  background: var(--layout-surface);
+  border-top: 1px solid var(--layout-border);
+  box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.2);
 }
 
 @media (min-width: 1024px) {
   .appNav {
     border-top: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    border-right: 1px solid var(--layout-border);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.2);
   }
 }
 
 .appNav-inner {
-  padding: 12px 16px;
+  padding: 10px 12px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 56px;
 }
 
 @media (min-width: 1024px) {
   .appNav-inner {
-    padding: 24px 16px;
-    flex-direction: column;
-    align-items: stretch;
+    padding: 24px 12px;
     justify-content: flex-start;
   }
 }
 
+.appNav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  justify-content: space-around;
+}
+
+@media (min-width: 1024px) {
+  .appNav-list {
+    flex-direction: column;
+    gap: 6px;
+    justify-content: flex-start;
+  }
+}
+
+.appNav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--layout-text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
+}
+
+.appNav-item:hover {
+  color: var(--layout-text);
+  background: rgba(0, 212, 255, 0.06);
+  border-color: rgba(0, 212, 255, 0.2);
+}
+
+.appNav-item--active {
+  color: var(--layout-accent);
+  background: rgba(0, 212, 255, 0.12);
+  border-color: var(--layout-border);
+  box-shadow: 0 0 16px var(--layout-glow), inset 0 0 20px rgba(0, 212, 255, 0.06);
+}
+
+.appNav-item--active .appNav-icon {
+  color: var(--layout-amber);
+  filter: drop-shadow(0 0 6px rgba(255, 179, 71, 0.5));
+}
+
+.appNav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.appNav-label {
+  white-space: nowrap;
+}
+
+a.appNav-item {
+  text-decoration: none;
+}
+
+.appMain .page-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  color: var(--layout-text);
+}
+
+.appMain .page-description {
+  margin: 0;
+  color: var(--layout-text-muted);
+}
+
 @media (max-width: 600px) {
+  .appNav-label {
+    display: none;
+  }
+  .appNav-item {
+    padding: 12px 16px;
+  }
   .appShell-orb {
     width: 70vw;
     height: 70vw;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 1023px) {
+  .appNav-list {
+    max-width: 400px;
+    margin: 0 auto;
   }
 }
