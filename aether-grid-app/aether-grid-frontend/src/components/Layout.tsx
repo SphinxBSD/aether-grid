@@ -12,31 +12,36 @@ export function Layout({ title, subtitle, children }: LayoutProps) {
   const resolvedSubtitle = subtitle || import.meta.env.VITE_GAME_TAGLINE || 'Testnet dev sandbox';
 
   return (
-    <div className="studio">
-      <div className="studio-background" aria-hidden="true">
-        <div className="studio-orb orb-1" />
-        <div className="studio-orb orb-2" />
-        <div className="studio-orb orb-3" />
-        <div className="studio-grid" />
+    <div className="appShell">
+      <div className="appShell-background" aria-hidden="true">
+        <div className="appShell-orb orb-1" />
+        <div className="appShell-orb orb-2" />
+        <div className="appShell-orb orb-3" />
+        <div className="appShell-grid" />
       </div>
 
-      <header className="studio-header">
-        <div className="brand">
-          <div className="brand-title">{resolvedTitle}</div>
-          <p className="brand-subtitle">{resolvedSubtitle}</p>
+      <header className="appHeader bg-blue-500">
+        <div className="appHeader-brand">
+          <h1 className="appHeader-title">{resolvedTitle}</h1>
+          <p className="appHeader-subtitle">{resolvedSubtitle}</p>
         </div>
-        <div className="header-actions">
-          <div className="network-pill">Testnet</div>
-          <div className="network-pill dev-pill">Dev Wallets</div>
+        <div className="appHeader-actions">
+          <span className="appHeader-pill">Testnet</span>
+          <span className="appHeader-pill appHeader-pill--dev">Dev Wallets</span>
           <WalletSwitcher />
         </div>
       </header>
 
-      <main className="studio-main">{children}</main>
+      <main className="appMain" id="main-content">
+        {children}
+      </main>
 
-      <footer className="studio-footer">
-        <span>Built with the Stellar Game Studio</span>
-      </footer>
+      <nav className="appNav" aria-label="Primary navigation">
+        <div className="appNav-inner bg-red-500 h-full">
+          {/* <WalletSwitcher /> */}
+          NAVIGATION
+        </div>
+      </nav>
     </div>
   );
 }
