@@ -9,7 +9,7 @@ export interface MapTile {
   variant: number;
 }
 
-const GRID = 8;
+const GRID = 7;
 const SEED = 42;
 
 function mulberry32(seed: number) {
@@ -21,7 +21,7 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Mock del mapa 8x8: pradera, agua, bosque, playa y roca para aspecto "tierra en el espacio" */
+/** Mock del mapa 7×7: pradera, agua, bosque, playa y roca para aspecto "tierra en el espacio" */
 export const MAP_MOCK: MapTile[] = (() => {
   const rand = mulberry32(SEED);
   const types: TileType[] = ['stone', 'stone', 'stone', 'water', 'tree', 'sand', 'rock'];

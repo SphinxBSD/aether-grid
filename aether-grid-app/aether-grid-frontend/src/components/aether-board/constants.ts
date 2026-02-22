@@ -1,5 +1,5 @@
-/** Tamaño del grid del tablero (NxN) */
-export const GRID_SIZE = 8;
+/** Tamaño del grid del tablero (NxN) — MVP 7×7 */
+export const GRID_SIZE = 7;
 /** Tamaño de cada tile (cubo) */
 export const TILE_SIZE = 1;
 /** Unidades que la base sobresale respecto al grid (por lado) */

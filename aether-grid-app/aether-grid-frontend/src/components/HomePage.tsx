@@ -1,11 +1,11 @@
 import './HomePage.css';
-import { AetherBoardScene } from './aether-board';
+import { AetherGame } from './aether-board';
 
 export function HomePage() {
   return (
     <div className="home-page">
       <div className="home-page-content">
-        <AetherBoardScene />
+        <AetherGame />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 export { AetherBoardScene } from './AetherBoardScene';
+export { AetherGame } from './game/AetherGame';
 export { BoardContent } from './BoardContent';
 export { BoardTiles } from './boardTiles';
 export { MapObjects } from './mapObjects';

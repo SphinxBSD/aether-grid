@@ -1,0 +1,63 @@
+.aether-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.aether-overlay-inner {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(10, 22, 48, 0.75);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 0 24px rgba(0, 212, 255, 0.15);
+}
+
+.aether-status {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: system-ui, sans-serif;
+}
+
+.aether-btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+  font-family: inherit;
+}
+
+.aether-btn:not(:disabled):hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+}
+
+.aether-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aether-btn--start {
+  background: linear-gradient(135deg, #00d4ff, #00aacc);
+  color: #0a1630;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.aether-btn--drill {
+  background: linear-gradient(135deg, #ff9500, #e87500);
+  color: #1a0a00;
+  border-color: rgba(255, 255, 255, 0.3);
+}
