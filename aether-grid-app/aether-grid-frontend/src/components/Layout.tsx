@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { WalletSwitcher } from './WalletSwitcher';
 // import { TopChipsBar } from './TopChipsBar';
 import './Layout.css';
@@ -45,18 +45,11 @@ function NavIcon({ name }: { name: (typeof navItems)[number]['icon'] }) {
 }
 
 export function Layout({ children }: LayoutProps) {
-  // const resolvedTitle = title || import.meta.env.VITE_GAME_TITLE || 'Stellar Game';
-  // const resolvedSubtitle = subtitle || import.meta.env.VITE_GAME_TAGLINE || 'Testnet dev sandbox';
+  const { pathname } = useLocation();
+  const isProfileOrRanking = pathname === '/profile' || pathname === '/ranking';
 
   return (
-    <div className="appShell">
-      {/* <div className="appShell-background" aria-hidden="true">
-        <div className="appShell-orb orb-1" />
-        <div className="appShell-orb orb-2" />
-        <div className="appShell-orb orb-3" />
-        <div className="appShell-grid" />
-      </div> */}
-
+    <div className={`appShell ${isProfileOrRanking ? 'appShell--darkScrim' : ''}`}>
       <header className="appHeader">
         <div className="appHeader-brand">
           {/* <h1 className="appHeader-title">{resolvedTitle}</h1> */}

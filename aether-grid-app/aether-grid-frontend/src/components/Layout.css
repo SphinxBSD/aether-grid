@@ -41,7 +41,36 @@
   }
 }
 
-/* Background (orbs + grid only; background.png is on HomePage) */
+/* Fondo espacial solo en el área de contenido (no detrás de nav ni navbar) */
+.appMain {
+  position: relative;
+  z-index: 1;
+  grid-area: main;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: url("/background.png") center center / cover no-repeat;
+}
+
+.appMain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: transparent;
+  transition: background 0.3s ease;
+}
+
+.appShell--darkScrim .appMain::before {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.appMain > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Capa opcional: orbs + grid */
 .appShell-background {
   position: fixed;
   inset: 0;
@@ -192,13 +221,6 @@
 }
 
 /* Main */
-.appMain {
-  position: relative;
-  z-index: 1;
-  grid-area: main;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-}
 
 /* Navigation: barra inferior / columna lateral estilo espacial */
 .appNav {
