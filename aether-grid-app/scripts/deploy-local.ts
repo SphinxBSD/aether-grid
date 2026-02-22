@@ -240,9 +240,18 @@ if (existsSync("local-deployment.json")) {
 }
 
 const deployed: Record<string, string> = { ...existingContractIds };
+const verifiers = existingDeployment?.verifiers || {};
 
-// ── Deploy Mock Hub ───────────────────────────────────────────────────────────
 let mockGameHubId = existingContractIds[mock.packageName] || "";
+
+// Ensure verifier exists if eather-grid is being deployed
+const deployEatherGrid = contracts.some((c) => c.packageName === "eather-grid");
+if (deployEatherGrid && !verifiers.map_1) {
+    console.error("❌ Error: Verifier ID not found in local-deployment.json.");
+    console.error("Run 'bun run deploy:verifier' first to deploy the UltraHonk verifier.");
+    process.exit(1);
+}
+
 if (shouldEnsureMock) {
   if (mockGameHubId && await localContractExists(mockGameHubId)) {
     deployed[mock.packageName] = mockGameHubId;
@@ -282,8 +291,21 @@ for (const contract of contracts) {
     console.log(`  WASM hash: ${wasmHash}`);
 
     console.log("  Deploying and initializing...");
-    const deployResult =
-      await $`stellar contract deploy --wasm-hash ${wasmHash} --source ${SIGNER} --network ${NETWORK} -- --admin ${adminAddress} --game-hub ${mockGameHubId}`.text();
+    let buildArgs = [
+      "contract", "deploy",
+      "--wasm-hash", wasmHash,
+      "--source", SIGNER,
+      "--network", NETWORK,
+      "--",
+      "--admin", adminAddress,
+      "--game-hub", mockGameHubId
+    ];
+
+    if (contract.packageName === "eather-grid") {
+        buildArgs.push("--verifier", verifiers.map_1);
+    }
+
+    const deployResult = await $`stellar ${buildArgs}`.text();
     const contractId = deployResult.trim().split("\n").at(-1)!;
     deployed[contract.packageName] = contractId;
     console.log(`✅ ${contract.packageName} deployed: ${contractId}\n`);
