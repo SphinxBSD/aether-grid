@@ -32,10 +32,10 @@ bun install
 bun run setup
 
 # Scaffold a game + dev frontend
-bun run create eather-grid
+bun run create aether-grid
 
 # Run the standalone dev frontend with testnet wallet switching
-bun run dev:game eather-grid
+bun run dev:game aether-grid
 ```
 
 ## Publish (Production)
