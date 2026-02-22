@@ -56,9 +56,6 @@ export function getAllContractIds(): Record<string, string> {
 
 // Contract IDs (backwards-compatible named exports for built-in games)
 export const MOCK_GAME_HUB_CONTRACT = getContractId('mock-game-hub');
-export const TWENTY_ONE_CONTRACT = getContractId('twenty-one');
-export const NUMBER_GUESS_CONTRACT = getContractId('number-guess');
-export const DICE_DUEL_CONTRACT = getContractId('dice-duel');
 
 // Dev wallet addresses
 export const DEV_ADMIN_ADDRESS = import.meta.env.VITE_DEV_ADMIN_ADDRESS || '';

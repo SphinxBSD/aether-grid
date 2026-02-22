@@ -1,35 +1,19 @@
 import { useState } from 'react';
-import { TwentyOneGame } from '../games/twenty-one/TwentyOneGame';
-import { NumberGuessGame } from '../games/number-guess/NumberGuessGame';
-import { DiceDuelGame } from '../games/dice-duel/DiceDuelGame';
+
 import { useWallet } from '@/hooks/useWallet';
 import typezeroHero from '../assets/typezero-hero.png';
 import xrayHero from '../assets/xray-hero.png';
 import './GamesCatalog.css';
 
-const games = [
-  {
-    id: 'twenty-one',
-    title: 'Twenty-One',
-    emoji: '🃏',
-    description: 'Card strategy duel where close-to-21 wins without busting.',
-    tags: ['2 players', 'Card strategy'],
-  },
-  {
-    id: 'number-guess',
-    title: 'Number Guess',
-    emoji: '🎯',
-    description: 'Pick a number, lock it in, and reveal the closest guess.',
-    tags: ['2 players', 'Fast rounds'],
-  },
-  {
-    id: 'dice-duel',
-    title: 'Dice Duel',
-    emoji: '🎲',
-    description: 'Roll two dice each and race for the highest total.',
-    tags: ['2 players', 'Quick launch'],
-  },
-];
+type GameDef = {
+  id: string;
+  title: string;
+  emoji: string;
+  description: string;
+  tags: string[];
+};
+
+const games: GameDef[] = [];
 
 interface GamesCatalogProps {
   onBack?: () => void;
@@ -49,44 +33,7 @@ export function GamesCatalog({ onBack }: GamesCatalogProps) {
     setSelectedGame(null);
   };
 
-  if (selectedGame === 'twenty-one') {
-    return (
-      <TwentyOneGame
-        userAddress={userAddress}
-        currentEpoch={1}
-        availablePoints={1000000000n}
-        onBack={handleBackToLibrary}
-        onStandingsRefresh={() => console.log('Refresh standings')}
-        onGameComplete={() => console.log('Game complete')}
-      />
-    );
-  }
 
-  if (selectedGame === 'number-guess') {
-    return (
-      <NumberGuessGame
-        userAddress={userAddress}
-        currentEpoch={1}
-        availablePoints={1000000000n}
-        onBack={handleBackToLibrary}
-        onStandingsRefresh={() => console.log('Refresh standings')}
-        onGameComplete={() => console.log('Game complete')}
-      />
-    );
-  }
-
-  if (selectedGame === 'dice-duel') {
-    return (
-      <DiceDuelGame
-        userAddress={userAddress}
-        currentEpoch={1}
-        availablePoints={1000000000n}
-        onBack={handleBackToLibrary}
-        onStandingsRefresh={() => console.log('Refresh standings')}
-        onGameComplete={() => console.log('Game complete')}
-      />
-    );
-  }
 
   return (
     <div className="library-page">
