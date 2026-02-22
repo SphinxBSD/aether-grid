@@ -1,6 +1,6 @@
 import { $ } from "bun";
 import { join } from "path";
-import { rm, readFile, writeFile } from "node:fs/promises";
+import { rm, readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 
 // Assumes the script is run from inside aether-grid-app directory
@@ -72,6 +72,13 @@ async function main() {
     }
     console.log(`    -> WASM artifact verified at ${wasmPath}`);
     
+    // Copy WASM to verifiers/map_1/
+    const destDir = join(rootDir, "verifiers", "map_1");
+    await mkdir(destDir, { recursive: true });
+    const finalWasmPath = join(destDir, "rs_soroban_ultrahonk.wasm");
+    await copyFile(wasmPath, finalWasmPath);
+    console.log(`    -> WASM copied to ${finalWasmPath}`);
+    
     console.log("==> 4) Deploy the verifier contract locally");
     // Stellar CLI outputs some logging and then the ID on the last line or sth similar
     const deployCmd = await $`stellar contract deploy \
@@ -97,6 +104,17 @@ async function main() {
     }
     
     console.log(`==> Deployed Contract ID: ${cid}`);
+    
+    // Persist verifier ID to local-deployment.json
+    const deploymentPath = join(process.cwd(), "local-deployment.json");
+    let deploymentInfo: any = {};
+    if (existsSync(deploymentPath)) {
+        deploymentInfo = JSON.parse(await readFile(deploymentPath, "utf-8"));
+    }
+    deploymentInfo.verifiers = deploymentInfo.verifiers || {};
+    deploymentInfo.verifiers.map_1 = cid;
+    await writeFile(deploymentPath, JSON.stringify(deploymentInfo, null, 2) + "\n");
+    console.log(`    -> Saved verifier ID to local-deployment.json`);
     
     console.log("==> 5) Verify proof (simulation, --send no)");
     await $`stellar contract invoke \

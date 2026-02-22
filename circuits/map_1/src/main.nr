@@ -1,11 +1,11 @@
 fn main(x: Field, y: pub Field) {
-    assert(x != y);
+    assert(x == y);
 }
 
 #[test]
 fn test_main() {
-    main(1, 2);
+    main(1, 1);
 
     // Uncomment to make test fail
-    // main(1, 1);
+    // main(1, 2);
 }
