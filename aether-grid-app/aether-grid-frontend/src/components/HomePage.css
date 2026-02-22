@@ -1,0 +1,24 @@
+/* Background image + scrim only on Home page */
+.home-page {
+  position: relative;
+  min-height: 100%;
+}
+
+.home-page-bg {
+  position: absolute;
+  inset: 0;
+  background: url("/background.png") center center / cover no-repeat;
+  z-index: 0;
+}
+
+.home-page-scrim {
+  position: absolute;
+  inset: 0;
+
+  z-index: 1;
+}
+
+.home-page-content {
+  position: relative;
+  z-index: 2;
+}

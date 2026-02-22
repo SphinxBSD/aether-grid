@@ -1,0 +1,287 @@
+/**
+ * Cosmic Neon / Glass UI (Stellar)
+ * Design tokens + reusable component classes.
+ * Single source of truth for the visual system.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+/* -------------------------------------------------------------------------
+   TOKENS
+   ------------------------------------------------------------------------- */
+:root {
+  /* Palette */
+  --stellar-bg-0: #050814;
+  --stellar-bg-1: #0A1630;
+  --stellar-text: #EAF2FF;
+  --stellar-text-muted: #A9B7D0;
+  --stellar-accent-cyan: #35D7FF;
+  --stellar-accent-blue: #2B7CFF;
+  --stellar-accent-violet: #8A5CFF;
+  --stellar-warning-gold: #FFC857;
+  --stellar-stroke: rgba(255, 255, 255, 0.12);
+  --stellar-stroke-strong: rgba(255, 255, 255, 0.18);
+  --stellar-surface: rgba(10, 22, 48, 0.55);
+  --stellar-surface-strong: rgba(10, 22, 48, 0.75);
+  --stellar-glow-cyan: rgba(53, 215, 255, 0.18);
+  --stellar-glow-cyan-focus: rgba(53, 215, 255, 0.55);
+
+  /* Typography */
+  --stellar-font-primary: "Inter", system-ui, sans-serif;
+  --stellar-font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+  --stellar-weight-body: 500;
+  --stellar-weight-body-strong: 600;
+  --stellar-weight-title: 800;
+  --stellar-weight-display: 900;
+
+  /* Surfaces & radius */
+  --stellar-radius: 18px;
+  --stellar-radius-lg: 20px;
+  --stellar-blur: 14px;
+  --stellar-shadow-soft: 0 24px 48px rgba(0, 0, 0, 0.35);
+  --stellar-shadow-neon: 0 0 18px var(--stellar-glow-cyan);
+
+  /* Motion */
+  --stellar-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --stellar-duration: 180ms;
+  --stellar-duration-slow: 220ms;
+}
+
+/* -------------------------------------------------------------------------
+   GLASS SURFACES (cards / panels)
+   ------------------------------------------------------------------------- */
+.glass-surface {
+  background: var(--stellar-surface);
+  backdrop-filter: blur(var(--stellar-blur));
+  -webkit-backdrop-filter: blur(var(--stellar-blur));
+  border: 1px solid var(--stellar-stroke);
+  border-radius: var(--stellar-radius);
+  box-shadow: var(--stellar-shadow-soft);
+  color: var(--stellar-text);
+}
+
+.glass-surface-strong {
+  background: var(--stellar-surface-strong);
+  backdrop-filter: blur(var(--stellar-blur));
+  -webkit-backdrop-filter: blur(var(--stellar-blur));
+  border: 1px solid var(--stellar-stroke);
+  border-radius: var(--stellar-radius);
+  box-shadow: var(--stellar-shadow-soft);
+  color: var(--stellar-text);
+}
+
+/* -------------------------------------------------------------------------
+   CHIPS (top bar pills: icon + number / label)
+   ------------------------------------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: var(--stellar-weight-body-strong);
+  font-family: var(--stellar-font-primary);
+  color: var(--stellar-text);
+  background: var(--stellar-surface);
+  backdrop-filter: blur(var(--stellar-blur));
+  -webkit-backdrop-filter: blur(var(--stellar-blur));
+  border: 1px solid var(--stellar-stroke);
+  box-shadow: 0 0 12px rgba(53, 215, 255, 0.06);
+  transition: transform var(--stellar-duration) var(--stellar-ease),
+    box-shadow var(--stellar-duration) var(--stellar-ease),
+    border-color var(--stellar-duration) var(--stellar-ease);
+}
+
+.chip:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 14px rgba(53, 215, 255, 0.12);
+}
+
+.chip:focus-visible {
+  outline: none;
+  border-color: var(--stellar-glow-cyan-focus);
+  box-shadow: 0 0 0 2px var(--stellar-glow-cyan-focus);
+}
+
+.chip:disabled,
+.chip[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.chip--mission {
+  border-color: rgba(255, 200, 87, 0.35);
+  box-shadow: 0 0 10px rgba(255, 200, 87, 0.08);
+}
+
+.chip--mission:hover {
+  border-color: rgba(255, 200, 87, 0.5);
+  box-shadow: 0 0 14px rgba(255, 200, 87, 0.15);
+}
+
+/* -------------------------------------------------------------------------
+   ICON BADGE (⚡ / coin / XLM indicator)
+   ------------------------------------------------------------------------- */
+.icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  color: var(--stellar-warning-gold);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.icon-badge--cyan {
+  color: var(--stellar-accent-cyan);
+}
+
+.icon-badge--gold {
+  color: var(--stellar-warning-gold);
+}
+
+/* -------------------------------------------------------------------------
+   BUTTONS
+   ------------------------------------------------------------------------- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: var(--stellar-weight-body-strong);
+  font-family: var(--stellar-font-primary);
+  color: var(--stellar-text);
+  background: linear-gradient(135deg, var(--stellar-accent-blue), var(--stellar-accent-cyan));
+  border: 1px solid var(--stellar-stroke-strong);
+  border-radius: var(--stellar-radius);
+  box-shadow: 0 0 18px var(--stellar-glow-cyan),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: transform var(--stellar-duration) var(--stellar-ease),
+    box-shadow var(--stellar-duration) var(--stellar-ease),
+    filter var(--stellar-duration) var(--stellar-ease);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 22px var(--stellar-glow-cyan),
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 0 14px var(--stellar-glow-cyan),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.btn-primary:focus-visible {
+  outline: none;
+  border-color: var(--stellar-glow-cyan-focus);
+  box-shadow: 0 0 0 2px var(--stellar-glow-cyan-focus),
+    0 0 18px var(--stellar-glow-cyan);
+}
+
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  filter: saturate(0.7);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: var(--stellar-weight-body-strong);
+  font-family: var(--stellar-font-primary);
+  color: var(--stellar-text);
+  background: var(--stellar-surface);
+  backdrop-filter: blur(var(--stellar-blur));
+  -webkit-backdrop-filter: blur(var(--stellar-blur));
+  border: 1px solid var(--stellar-stroke);
+  border-radius: var(--stellar-radius);
+  cursor: pointer;
+  transition: transform var(--stellar-duration) var(--stellar-ease),
+    border-color var(--stellar-duration) var(--stellar-ease),
+    background var(--stellar-duration) var(--stellar-ease);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(10, 22, 48, 0.65);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary:focus-visible {
+  outline: none;
+  border-color: var(--stellar-glow-cyan-focus);
+  box-shadow: 0 0 0 2px var(--stellar-glow-cyan-focus);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* -------------------------------------------------------------------------
+   GLOBAL FOCUS (keyboard accessibility)
+   ------------------------------------------------------------------------- */
+:where(button, a, [tabindex]:not([tabindex="-1"])):focus {
+  outline: none;
+}
+
+:where(button, a, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--stellar-glow-cyan-focus);
+  outline-offset: 2px;
+}
+
+/* Components that define their own focus use outline: none and box-shadow for ring */
+:where(.btn-primary, .btn-secondary, .chip):focus-visible {
+  outline: none;
+}
+
+/* -------------------------------------------------------------------------
+   UTILITY: ensure text is never directly on raw background
+   ------------------------------------------------------------------------- */
+.stellar-scrim {
+  background: linear-gradient(
+    180deg,
+    rgba(5, 8, 20, 0.85) 0%,
+    rgba(5, 8, 20, 0.7) 50%,
+    rgba(5, 8, 20, 0.9) 100%
+  );
+}
+
+/* -------------------------------------------------------------------------
+   EXAMPLE: Main glass card + primary CTA
+   Copy into your page component as needed.
+   -------------------------------------------------------------------------
+   <div className="glass-surface" style={{ padding: '1.5rem', maxWidth: '480px' }}>
+     <h2 style={{ fontFamily: 'var(--stellar-font-primary)', fontWeight: 800, marginBottom: '0.75rem' }}>
+       Card title
+     </h2>
+     <p style={{ color: 'var(--stellar-text-muted)', marginBottom: '1.25rem' }}>
+       Body text on glass. Always use surfaces for readability over the background.
+     </p>
+     <button type="button" className="btn-primary">
+       Start Expedition
+     </button>
+   </div>
+   ------------------------------------------------------------------------- */

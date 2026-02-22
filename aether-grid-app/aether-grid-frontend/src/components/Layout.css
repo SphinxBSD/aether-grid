@@ -5,14 +5,14 @@
    ------------------------------------------------------------------------- */
 
 :root {
-  --layout-bg: #0a0e17;
-  --layout-surface: rgba(12, 18, 28, 0.92);
-  --layout-border: rgba(0, 212, 255, 0.25);
-  --layout-glow: rgba(0, 212, 255, 0.4);
-  --layout-accent: #00d4ff;
-  --layout-amber: #ffb347;
-  --layout-text: #e8ecf1;
-  --layout-text-muted: rgba(232, 236, 241, 0.7);
+  --layout-bg: var(--stellar-bg-0);
+  --layout-surface: var(--stellar-surface-strong);
+  --layout-border: var(--stellar-stroke);
+  --layout-glow: var(--stellar-glow-cyan);
+  --layout-accent: var(--stellar-accent-cyan);
+  --layout-amber: var(--stellar-warning-gold);
+  --layout-text: var(--stellar-text);
+  --layout-text-muted: var(--stellar-text-muted);
 }
 
 .appShell {
@@ -21,8 +21,8 @@
   min-height: 100dvh;
   height: 100dvh;
   overflow: hidden;
-  color: var(--layout-text);
-  background: var(--layout-bg);
+  color: var(--stellar-text);
+  background: var(--stellar-bg-0);
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
@@ -41,7 +41,7 @@
   }
 }
 
-/* Background */
+/* Background (orbs + grid only; background.png is on HomePage) */
 .appShell-background {
   position: fixed;
   inset: 0;
@@ -55,7 +55,7 @@
   height: 48vw;
   border-radius: 50%;
   filter: blur(60px);
-  opacity: 0.35;
+  opacity: 0.2;
   animation: appShell-float 22s ease-in-out infinite;
 }
 
@@ -86,7 +86,7 @@
   background-image: linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px),
     linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px);
   background-size: 140px 140px;
-  opacity: 0.5;
+  opacity: 0.25;
 }
 
 @keyframes appShell-float {
@@ -108,6 +108,28 @@
   background: var(--layout-surface);
   border-bottom: 1px solid var(--layout-border);
   box-shadow: 0 0 20px rgba(0, 212, 255, 0.06);
+}
+
+@media (max-width: 768px) {
+  .appHeader {
+    padding: 0.5rem 12px;
+    align-items: center;
+    min-height: 48px;
+    overflow-x: hidden;
+  }
+  .appHeader-brand {
+    display: none;
+  }
+  .appHeader-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .appHeader-pill {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.6rem;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -143,9 +165,16 @@
   flex-wrap: wrap;
 }
 
+.top-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .appHeader-pill {
   padding: 0.4rem 0.85rem;
-  border-radius: 999px;
+  border-radius: 10px;
   border: 1px solid var(--layout-border);
   font-size: 0.7rem;
   letter-spacing: 0.1em;
@@ -168,14 +197,7 @@
   z-index: 1;
   grid-area: main;
   overflow: auto;
-  padding: 16px;
   -webkit-overflow-scrolling: touch;
-}
-
-@media (min-width: 1024px) {
-  .appMain {
-    padding: 24px 32px 32px;
-  }
 }
 
 /* Navigation: barra inferior / columna lateral estilo espacial */
@@ -291,12 +313,33 @@ a.appNav-item {
   color: var(--layout-text-muted);
 }
 
+/* Mobile: ocultar logo y elementos grandes; nav más compacto */
+@media (max-width: 768px) {
+  .hide-on-mobile,
+  img[src*="logo"],
+  .home-page img[src*="logo"] {
+    display: none !important;
+  }
+}
+
 @media (max-width: 600px) {
   .appNav-label {
     display: none;
   }
   .appNav-item {
-    padding: 12px 16px;
+    padding: 8px 12px;
+  }
+  .appNav-inner {
+    min-height: 48px;
+    padding: 6px 8px;
+  }
+  .appNav-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .appNav-icon svg {
+    width: 20px;
+    height: 20px;
   }
   .appShell-orb {
     width: 70vw;

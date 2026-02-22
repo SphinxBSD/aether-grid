@@ -66,8 +66,11 @@ export function WalletSwitcher() {
         <div className="wallet-status connected">
           <span className="status-indicator"></span>
           <div className="wallet-details">
-            <div className="wallet-label">
+            <div className="wallet-label wallet-label--full">
               Connected Player {currentPlayer}
+            </div>
+            <div className="wallet-label wallet-label--short">
+              P{currentPlayer}
             </div>
             <div className="wallet-address">
               {publicKey ? `${publicKey.slice(0, 8)}...${publicKey.slice(-4)}` : ''}
@@ -79,7 +82,8 @@ export function WalletSwitcher() {
               className="switch-button"
               disabled={isConnecting}
             >
-              Switch to Player {currentPlayer === 1 ? 2 : 1}
+              <span className="switch-button-full">Switch to Player {currentPlayer === 1 ? 2 : 1}</span>
+              <span className="switch-button-short">Switch</span>
             </button>
           )}
         </div>
