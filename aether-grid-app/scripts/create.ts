@@ -158,19 +158,19 @@ if (!isValidSlug(gameSlug)) {
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const contractsRoot = path.join(repoRoot, 'contracts');
-const exampleContractDir = path.join(contractsRoot, 'number-guess');
+const exampleContractDir = path.join(contractsRoot, 'eather-grid');
 const newContractDir = path.join(contractsRoot, gameSlug);
 const frontendTemplateDir = path.join(repoRoot, 'template_frontend');
 const frontendSlug = `${gameSlug}-frontend`;
 const newFrontendDir = path.join(repoRoot, frontendSlug);
 
 if (!existsSync(exampleContractDir)) {
-  console.error(`\n❌ Missing number-guess example contract at ${exampleContractDir}`);
+  console.error(`\n❌ Missing eather-grid example contract at ${exampleContractDir}`);
   process.exit(1);
 }
 
 if (!existsSync(frontendTemplateDir)) {
-  console.error(`\n❌ Missing number-guess frontend example at ${frontendTemplateDir}`);
+  console.error(`\n❌ Missing template_frontend example at ${frontendTemplateDir}`);
   process.exit(1);
 }
 
@@ -194,7 +194,7 @@ if (existsSync(newFrontendDir)) {
 
 console.log(`\n🧩 Creating game: ${gameSlug}`);
 
-console.log('  • Copying number-guess contract...');
+console.log('  • Copying eather-grid contract...');
 copyDir(exampleContractDir, newContractDir);
 
 const pascalName = pascalFromSlug(gameSlug);
@@ -202,14 +202,23 @@ const titleName = titleCaseFromSlug(gameSlug);
 const camelName = camelFromSlug(gameSlug);
 const envKey = toEnvKey(gameSlug);
 
-const replacements = {
+const contractReplacements = {
+  'eather-grid': gameSlug,
+  'EatherGrid': pascalName || 'Game',
+  'Eather Grid': titleName || 'Game',
+  'eatherGrid': camelName || 'game',
+  'EATHER_GRID': envKey || 'GAME',
+};
+
+const frontendReplacements = {
   'number-guess': gameSlug,
   'NumberGuess': pascalName || 'Game',
   'Number Guess': titleName || 'Game',
   'numberGuess': camelName || 'game',
   'NUMBER_GUESS': envKey || 'GAME',
 };
-replaceInDir(newContractDir, replacements);
+
+replaceInDir(newContractDir, contractReplacements);
 
 console.log('  • Registering contract in workspace...');
 updateWorkspaceMembers(repoRoot, gameSlug);
@@ -257,9 +266,9 @@ renameIfExists(
   path.join(newGameDir, `${serviceFileBase}.ts`)
 );
 
-replaceInDir(newGameDir, replacements);
-replaceInFile(path.join(newFrontendDir, 'src', 'utils', 'constants.ts'), replacements);
-replaceInFile(path.join(newFrontendDir, 'src', 'config.ts'), replacements);
+replaceInDir(newGameDir, frontendReplacements);
+replaceInFile(path.join(newFrontendDir, 'src', 'utils', 'constants.ts'), frontendReplacements);
+replaceInFile(path.join(newFrontendDir, 'src', 'config.ts'), frontendReplacements);
 
 const appTemplate = `import { config } from './config';
 import { Layout } from './components/Layout';

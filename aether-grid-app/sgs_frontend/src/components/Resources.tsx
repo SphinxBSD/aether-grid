@@ -409,8 +409,8 @@ function ImportGameSection() {
               <code>{`[workspace]
 members = [
   "contracts/mock-game-hub",
-  "contracts/twenty-one",
-  "contracts/number-guess",
+  "contracts/aether-grid",
+  "contracts/eather-grid",
   "contracts/imported-game",
 ]`}</code>
             </pre>
