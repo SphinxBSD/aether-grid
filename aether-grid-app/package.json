@@ -11,7 +11,9 @@
     "publish": "bun run scripts/publish.ts",
     "dev": "bun --cwd=sgs_frontend run dev",
     "dev:game": "bun run scripts/dev-game.ts",
-    "deploy:verifier": "bun run scripts/deploy-verifier.ts"
+    "deploy:verifier": "bun run scripts/deploy-verifier.ts",
+    "build:local": "bun run scripts/build-local.ts",
+    "deploy:local": "bun run scripts/deploy-local.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
