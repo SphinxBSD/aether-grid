@@ -48,6 +48,7 @@ export function GameOverlay() {
   const sendStatusText = useGameRoleStore((s) => s.sendStatusText);
   const canDrill = phase === 'PLAYING' && !isDrilling && !impulseBlockDrill;
   const showPowers = phase === 'PLAYING' || phase === 'MOVING';
+  const toolsBlocked = phase === 'FINISHED';
   const messageAge = typeof lastMessageAt === 'number' ? performance.now() - lastMessageAt : 9999;
   const showMessage = lastMessage && messageAge < 3000;
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -89,74 +90,80 @@ export function GameOverlay() {
                 <div className="aether-console-value aether-console-value--energy">{energy}</div>
               </div>
 
-              {showPowers && (
-                <>
-                  <div className="aether-console-section aether-console-section--tools">
-                    <div className="aether-console-label">Herramienta</div>
-                    <div className="aether-powers">
+              <div className={`aether-console-section aether-console-section--tools ${toolsBlocked ? 'aether-console-section--tools-blocked' : ''}`}>
+                <div className="aether-console-label">Herramienta</div>
+                <div className="aether-powers">
+                  <button
+                    type="button"
+                    className={`aether-btn aether-btn--power ${activePower === 'MOVE' ? 'aether-btn--power-active' : ''}`}
+                    onClick={() => !toolsBlocked && setActivePower('MOVE')}
+                    disabled={toolsBlocked}
+                    aria-disabled={toolsBlocked}
+                  >
+                    {POWER_LABELS.MOVE}
+                  </button>
+                  <button
+                    type="button"
+                    className={`aether-btn aether-btn--drill ${canDrill && !toolsBlocked ? '' : 'aether-btn--disabled'}`}
+                    onClick={drillCurrentTile}
+                    disabled={!canDrill || toolsBlocked}
+                    title="Perforar en la casilla actual"
+                  >
+                    {POWER_LABELS.DRILL}
+                  </button>
+                  <button
+                    type="button"
+                    className={`aether-btn aether-btn--power aether-btn--power-with-uses ${activePower === 'RADAR' ? 'aether-btn--power-active' : ''}`}
+                    onClick={() => !toolsBlocked && setActivePower('RADAR')}
+                    disabled={toolsBlocked}
+                    aria-disabled={toolsBlocked}
+                  >
+                    {POWER_LABELS.RADAR} <span className="aether-btn-uses">({radarUses})</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`aether-btn aether-btn--power aether-btn--power-with-uses ${activePower === 'SCAN' ? 'aether-btn--power-active' : ''}`}
+                    onClick={() => !toolsBlocked && setActivePower('SCAN')}
+                    disabled={toolsBlocked}
+                    aria-disabled={toolsBlocked}
+                  >
+                    {POWER_LABELS.SCAN} <span className="aether-btn-uses">({scanUses})</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`aether-btn aether-btn--power aether-btn--power-with-uses ${activePower === 'IMPULSE' ? 'aether-btn--power-active' : ''}`}
+                    onClick={() => !toolsBlocked && setActivePower('IMPULSE')}
+                    disabled={toolsBlocked}
+                    aria-disabled={toolsBlocked}
+                  >
+                    {POWER_LABELS.IMPULSE} <span className="aether-btn-uses">({impulseUses})</span>
+                  </button>
+                </div>
+              </div>
+
+              {activePower === 'SCAN' && !toolsBlocked && (
+                <div className="aether-console-section aether-console-section--scanner">
+                  <div className="aether-scanner-panel">
+                    <div className="aether-scanner-mode">
+                      <span className="aether-scanner-mode-label">Modo</span>
                       <button
                         type="button"
-                        className={`aether-btn aether-btn--power ${activePower === 'MOVE' ? 'aether-btn--power-active' : ''}`}
-                        onClick={() => setActivePower('MOVE')}
+                        className={`aether-btn aether-btn--scan-mode ${scanMode === 'row' ? 'active' : ''}`}
+                        onClick={() => setScanMode('row')}
                       >
-                        {POWER_LABELS.MOVE}
+                        Fila
                       </button>
                       <button
                         type="button"
-                        className={`aether-btn aether-btn--drill ${canDrill ? '' : 'aether-btn--disabled'}`}
-                        onClick={drillCurrentTile}
-                        disabled={!canDrill}
-                        title="Perforar en la casilla actual"
+                        className={`aether-btn aether-btn--scan-mode ${scanMode === 'col' ? 'active' : ''}`}
+                        onClick={() => setScanMode('col')}
                       >
-                        {POWER_LABELS.DRILL}
-                      </button>
-                      <button
-                        type="button"
-                        className={`aether-btn aether-btn--power aether-btn--power-with-uses ${activePower === 'RADAR' ? 'aether-btn--power-active' : ''}`}
-                        onClick={() => setActivePower('RADAR')}
-                      >
-                        {POWER_LABELS.RADAR} <span className="aether-btn-uses">({radarUses})</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`aether-btn aether-btn--power aether-btn--power-with-uses ${activePower === 'SCAN' ? 'aether-btn--power-active' : ''}`}
-                        onClick={() => setActivePower('SCAN')}
-                      >
-                        {POWER_LABELS.SCAN} <span className="aether-btn-uses">({scanUses})</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`aether-btn aether-btn--power aether-btn--power-with-uses ${activePower === 'IMPULSE' ? 'aether-btn--power-active' : ''}`}
-                        onClick={() => setActivePower('IMPULSE')}
-                      >
-                        {POWER_LABELS.IMPULSE} <span className="aether-btn-uses">({impulseUses})</span>
+                        Col
                       </button>
                     </div>
-                  </div>
-
-                  {activePower === 'SCAN' && (
-                    <div className="aether-console-section aether-console-section--scanner">
-                      <div className="aether-scanner-panel">
-                        <div className="aether-scanner-mode">
-                          <span className="aether-scanner-mode-label">Modo</span>
-                          <button
-                            type="button"
-                            className={`aether-btn aether-btn--scan-mode ${scanMode === 'row' ? 'active' : ''}`}
-                            onClick={() => setScanMode('row')}
-                          >
-                            Fila
-                          </button>
-                          <button
-                            type="button"
-                            className={`aether-btn aether-btn--scan-mode ${scanMode === 'col' ? 'active' : ''}`}
-                            onClick={() => setScanMode('col')}
-                          >
-                            Col
-                          </button>
-                        </div>
-                        <div className="aether-scanner-index">
-                          <span className="aether-scanner-index-label">Índice 1–7</span>
-                          <input
+                    <div className="aether-scanner-index">
+                      <span className="aether-scanner-index-label">Índice 1–7</span>
+                      <input
                             type="range"
                             min={0}
                             max={6}
@@ -178,20 +185,18 @@ export function GameOverlay() {
                     </div>
                   )}
 
-                  <div className="aether-console-section aether-console-section--log">
-                    <div className="aether-console-label">Historial</div>
-                    <div className="aether-console-log" ref={logContainerRef}>
-                      {actionLog.length === 0 ? (
-                        <div className="aether-console-log-empty">—</div>
-                      ) : (
-                        actionLog.map((line, i) => (
-                          <div key={`${i}-${line}`} className="aether-console-log-line">{line}</div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+              <div className="aether-console-section aether-console-section--log">
+                <div className="aether-console-label">Historial</div>
+                <div className="aether-console-log" ref={logContainerRef}>
+                  {actionLog.length === 0 ? (
+                    <div className="aether-console-log-empty">—</div>
+                  ) : (
+                    actionLog.map((line, i) => (
+                      <div key={`${i}-${line}`} className="aether-console-log-line">{line}</div>
+                    ))
+                  )}
+                </div>
+              </div>
 
               {showMessage && (
                 <div className="aether-console-section aether-console-section--message">

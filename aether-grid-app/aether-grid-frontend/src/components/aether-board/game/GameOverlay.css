@@ -377,6 +377,11 @@
   overflow: visible;
 }
 
+.aether-console-section--tools-blocked .aether-powers .aether-btn {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .aether-powers {
   display: flex;
   flex-wrap: wrap;
