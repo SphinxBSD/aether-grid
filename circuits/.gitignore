@@ -1,3 +1,5 @@
 target/
 node_modules/
-Prover.toml
+map_1/Prover.toml
+map_2/Prover.toml
+map_3/Prover.toml
