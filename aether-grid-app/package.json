@@ -7,6 +7,7 @@
     "build": "bun run scripts/build.ts",
     "deploy": "bun run scripts/deploy.ts",
     "bindings": "bun run scripts/bindings.ts",
+    "bindings:local": "bun run scripts/bindings-local.ts",
     "create": "bun run scripts/create.ts",
     "publish": "bun run scripts/publish.ts",
     "dev": "bun --cwd=sgs_frontend run dev",

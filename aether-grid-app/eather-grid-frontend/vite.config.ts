@@ -18,19 +18,26 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['@stellar/stellar-sdk', '@stellar/stellar-sdk/contract', '@stellar/stellar-sdk/rpc', 'buffer'],
+    exclude: ['@aztec/bb.js', '@noir-lang/noir_js', '@noir-lang/acvm_js'],
     esbuildOptions: {
       define: {
         global: 'globalThis'
-      }
+      },
+      target: 'esnext'
     }
   },
   build: {
+    target: 'esnext',
     commonjsOptions: {
       transformMixedEsModules: true
     }
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    }
   }
 })

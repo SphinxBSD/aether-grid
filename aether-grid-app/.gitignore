@@ -41,3 +41,5 @@ local-deployment.json
 # OS
 .DS_Store
 Thumbs.db
+
+eather-grid-frontend/zkbytecode/

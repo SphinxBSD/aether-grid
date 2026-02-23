@@ -69,9 +69,14 @@ pub trait GameHub {
 ///
 /// Contract: the verifier MUST trap on failure. It MUST NOT return `false`.
 /// A call returning normally signals a valid proof.
+///
+/// ⚠ Parameter order matters: the deployed verifier (`rs-soroban-ultrahonk`)
+/// expects `public_inputs` FIRST, then `proof_bytes`.  Swapping them causes
+/// the verifier to receive proof bytes where it expects field elements, which
+/// silently produces a "VerificationFailed" trap inside the Rust verifier.
 #[contractclient(name = "UltraHonkVerifierClient")]
 pub trait UltraHonkVerifier {
-    fn verify_proof(env: Env, proof: Bytes, public_inputs: Bytes);
+    fn verify_proof(env: Env, public_inputs: Bytes, proof_bytes: Bytes);
 }
 
 // ============================================================================
@@ -337,13 +342,18 @@ impl EatherGridContract {
 
         // Cross-contract call: decoupled, stateless UltraHonk verifier.
         // If the proof is invalid the verifier MUST trap — the whole tx reverts.
+        //
+        // ⚠ Parameter order: the verifier expects (public_inputs, proof_bytes).
+        // Do NOT swap — passing proof as the first argument causes the verifier
+        // to interpret raw proof bytes as Bn254 field elements, which fails
+        // cryptographically and produces Error(Contract, #3 VerificationFailed).
         let verifier_addr: Address = env
             .storage()
             .instance()
             .get(&DataKey::VerifierAddress)
             .expect("Verifier not set");
         let verifier = UltraHonkVerifierClient::new(&env, &verifier_addr);
-        verifier.verify_proof(&proof, &public_inputs);
+        verifier.verify_proof(&public_inputs, &proof);
 
         // Proof accepted — record player's energy expenditure.
         if is_player1 {
