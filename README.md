@@ -1,68 +1,52 @@
-# Aether Grid
+# AETHER — Strategic Energy Optimization Game
 
-## Requisitos
-
-| Herramienta     | Versión      | Notas                    |
-|-----------------|--------------|--------------------------|
-| **Stellar CLI** | 25.1.0       | Ver instalación más abajo |
-| **Noir (nargo)**| 1.0.0-beta.9 | Ver instalación más abajo |
-| **Bun**         | —            | [bun.sh](https://bun.sh)  |
+Juego de estrategia por turnos en una cuadrícula 7×7: localizas un núcleo de energía oculto. Cada acción (movimiento, radar, taladro) consume energía; **quien lo encuentra con menos energía total gana**. Integra pruebas de conocimiento cero (ZK) para verificación justa y corre sobre Stellar.
 
 ---
 
-## Instalación
+## Cómo correrlo en local
 
-### Stellar CLI (macOS / Linux)
+### Requisitos
 
-**Script:**
+| Herramienta     | Versión      |
+|-----------------|--------------|
+| **Stellar CLI** | 25.1.0       |
+| **Noir (nargo)**| 1.0.0-beta.9 |
+| **Bun**         | [bun.sh](https://bun.sh) |
+| **Docker**      | Para la red local |
+
+### Instalar herramientas
+
+**Stellar CLI (macOS / Linux):**
 ```bash
 curl -fsSL https://github.com/stellar/stellar-cli/raw/main/install.sh | sh
+# o: brew install stellar-cli
+# o: cargo install --locked stellar-cli@25.1.0
 ```
 
-**Homebrew:**
-```bash
-brew install stellar-cli
-```
-
-**Desde código (cargo):**
-```bash
-cargo install --locked stellar-cli@25.1.0
-```
-
-### Noir (nargo)
-
+**Noir (nargo):**
 ```bash
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 noirup --version v1.0.0-beta.9
 ```
+Si no reconoce `nargo`, abre de nuevo la terminal o ejecuta `source ~/.zshrc`.
 
-Si no reconoce `nargo`, cierra la terminal y ábrela de nuevo (o ejecuta `source ~/.zshrc` / `source ~/.bashrc`).
-
-### Bun
-
-Instala desde [bun.sh](https://bun.sh).
+**Bun:** [bun.sh](https://bun.sh)
 
 ---
 
-## Pasos a seguir
+### Pasos
 
-Para tener el proyecto corriendo en tu máquina:
+**1. Red local de Stellar**
 
-**1. Levantar la red local de Stellar**
-
-Si ves **"port is already allocated"** o el puerto 8000 está ocupado, primero para y elimina los contenedores de Stellar y los que queden huérfanos:
-
+Si el puerto 8000 ya está en uso:
 ```bash
-# Ver contenedores (busca el que tenga 8000->8000 en PORTS; suele llamarse stellar-local)
 docker ps -a
-
-# Parar y eliminar el contenedor Stellar por nombre (o usa el CONTAINER ID de la lista)
 docker stop stellar-local
 docker rm stellar-local
 ```
 
-Luego levanta la red (con `--limits unlimited` para el verificador ZK):
-
+Levantar la red (**necesaria** `--limits unlimited` para el verificador ZK):
 ```bash
 docker run -d -p 8000:8000 stellar/quickstart \
   --local \
@@ -74,18 +58,15 @@ stellar network add local \
 stellar network use local
 ```
 
-> **Importante:** `--limits unlimited` es obligatorio para el verificador ZK. Si ves `HostError: Error(Budget, ExceededLimit)` al hacer `deploy:verifier`, reinicia el contenedor con ese flag.
-
-**2. Crear y fondear la wallet (alice)**
+**2. Wallet (alice)**
 
 ```bash
 stellar keys generate --global alice
 stellar keys fund alice --network local
 ```
+Si acabas de reiniciar el contenedor, ejecuta de nuevo `stellar keys fund alice --network local`.
 
-> Si acabas de reiniciar el contenedor de Stellar, la red está vacía: **vuelve a ejecutar** `stellar keys fund alice --network local` antes de `deploy:verifier`. Si no, verás "Account not found".
-
-**3. Entrar en la app, desplegar verificador, build, deploy y frontend**
+**3. App: verificador, build, deploy y frontend**
 
 ```bash
 cd aether-grid-app
@@ -95,4 +76,15 @@ bun run deploy:local
 bun run dev:game aether-grid
 ```
 
-Con eso deberías tener el proyecto funcionando en local.
+El juego se abre en **http://localhost:3000**.
+
+---
+
+### Errores frecuentes
+
+| Error | Qué hacer |
+|-------|-----------|
+| `port is already allocated` | Para y borra el contenedor Stellar (paso 1). |
+| `Account not found` | Ejecuta `stellar keys fund alice --network local`. |
+| `Budget, ExceededLimit` | Levanta la red con `--limits unlimited`. |
+| `Failed to resolve import "@aztec/bb.js"` | Desde `aether-grid-app/aether-grid-frontend`: `bun install`. |
