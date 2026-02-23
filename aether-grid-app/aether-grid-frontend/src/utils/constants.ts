@@ -56,7 +56,8 @@ export function getAllContractIds(): Record<string, string> {
 
 // Contract IDs (backwards-compatible named exports for built-in games)
 export const MOCK_GAME_HUB_CONTRACT = getContractId('mock-game-hub');
-export const AETHER_GRID_CONTRACT = getContractId('aether-grid');
+// This frontend now uses the eather-grid ZK contract instead of the original aether-grid contract.
+export const AETHER_GRID_CONTRACT = getContractId('eather-grid');
 
 // Dev wallet addresses
 export const DEV_ADMIN_ADDRESS = import.meta.env.VITE_DEV_ADMIN_ADDRESS || '';

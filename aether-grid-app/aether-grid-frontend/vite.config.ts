@@ -18,19 +18,29 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['@stellar/stellar-sdk', '@stellar/stellar-sdk/contract', '@stellar/stellar-sdk/rpc', 'buffer'],
+    // ZK WASM packages must NOT be pre-bundled by esbuild — they load their
+    // own WASM at runtime and must be treated as native ES modules.
+    exclude: ['@aztec/bb.js', '@noir-lang/noir_js', '@noir-lang/acvm_js'],
     esbuildOptions: {
       define: {
         global: 'globalThis'
-      }
+      },
+      target: 'esnext'
     }
   },
   build: {
+    target: 'esnext',
     commonjsOptions: {
       transformMixedEsModules: true
     }
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
+    headers: {
+      // Required for SharedArrayBuffer (used by Barretenberg multithreaded WASM).
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    }
   }
 })
