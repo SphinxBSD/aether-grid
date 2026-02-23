@@ -1,27 +1,27 @@
 # AETHER — Strategic Energy Optimization Game
 
-Juego de estrategia por turnos en una cuadrícula 7×7: localizas un núcleo de energía oculto. Cada acción (movimiento, radar, taladro) consume energía; **quien lo encuentra con menos energía total gana**. Integra pruebas de conocimiento cero (ZK) para verificación justa y corre sobre Stellar.
+Turn-based strategy on a 7×7 grid: you locate a hidden energy core. Every action (move, radar, drill) costs energy; **the player who finds it with the least total energy wins**. Uses zero-knowledge (ZK) proofs for fair verification and runs on Stellar.
 
 ---
 
-## Cómo correrlo en local
+## How to run locally
 
-### Requisitos
+### Requirements
 
-| Herramienta     | Versión      |
-|-----------------|--------------|
-| **Stellar CLI** | 25.1.0       |
-| **Noir (nargo)**| 1.0.0-beta.9 |
-| **Bun**         | [bun.sh](https://bun.sh) |
-| **Docker**      | Para la red local |
+| Tool           | Version      |
+|----------------|--------------|
+| **Stellar CLI**| 25.1.0       |
+| **Noir (nargo)** | 1.0.0-beta.9 |
+| **Bun**        | [bun.sh](https://bun.sh) |
+| **Docker**     | For local network |
 
-### Instalar herramientas
+### Install tools
 
 **Stellar CLI (macOS / Linux):**
 ```bash
 curl -fsSL https://github.com/stellar/stellar-cli/raw/main/install.sh | sh
-# o: brew install stellar-cli
-# o: cargo install --locked stellar-cli@25.1.0
+# or: brew install stellar-cli
+# or: cargo install --locked stellar-cli@25.1.0
 ```
 
 **Noir (nargo):**
@@ -29,24 +29,24 @@ curl -fsSL https://github.com/stellar/stellar-cli/raw/main/install.sh | sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 noirup --version v1.0.0-beta.9
 ```
-Si no reconoce `nargo`, abre de nuevo la terminal o ejecuta `source ~/.zshrc`.
+If `nargo` is not found, open a new terminal or run `source ~/.zshrc`.
 
 **Bun:** [bun.sh](https://bun.sh)
 
 ---
 
-### Pasos
+### Steps
 
-**1. Red local de Stellar**
+**1. Stellar local network**
 
-Si el puerto 8000 ya está en uso:
+If port 8000 is already in use:
 ```bash
 docker ps -a
 docker stop stellar-local
 docker rm stellar-local
 ```
 
-Levantar la red (**necesaria** `--limits unlimited` para el verificador ZK):
+Start the network (**required**: `--limits unlimited` for the ZK verifier):
 ```bash
 docker run -d -p 8000:8000 stellar/quickstart \
   --local \
@@ -64,9 +64,9 @@ stellar network use local
 stellar keys generate --global alice
 stellar keys fund alice --network local
 ```
-Si acabas de reiniciar el contenedor, ejecuta de nuevo `stellar keys fund alice --network local`.
+If you just restarted the container, run `stellar keys fund alice --network local` again.
 
-**3. App: verificador, build, deploy y frontend**
+**3. App: verifier, build, deploy, and frontend**
 
 ```bash
 cd aether-grid-app
@@ -76,15 +76,15 @@ bun run deploy:local
 bun run dev:game aether-grid
 ```
 
-El juego se abre en **http://localhost:3000**.
+The game opens at **http://localhost:3000**.
 
 ---
 
-### Errores frecuentes
+### Common errors
 
-| Error | Qué hacer |
-|-------|-----------|
-| `port is already allocated` | Para y borra el contenedor Stellar (paso 1). |
-| `Account not found` | Ejecuta `stellar keys fund alice --network local`. |
-| `Budget, ExceededLimit` | Levanta la red con `--limits unlimited`. |
-| `Failed to resolve import "@aztec/bb.js"` | Desde `aether-grid-app/aether-grid-frontend`: `bun install`. |
+| Error | What to do |
+|-------|------------|
+| `port is already allocated` | Stop and remove the Stellar container (step 1). |
+| `Account not found` | Run `stellar keys fund alice --network local`. |
+| `Budget, ExceededLimit` | Start the network with `--limits unlimited`. |
+| `Failed to resolve import "@aztec/bb.js"` | From `aether-grid-app/aether-grid-frontend`: `bun install`. |
