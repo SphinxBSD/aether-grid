@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { config } from './config';
 import { Layout } from './components/Layout';
-import { HomePage } from './components/HomePage';
 import { MatchPage } from './components/MatchPage';
 import { RankingPage } from './components/RankingPage';
 import { ProfilePage } from './components/ProfilePage';
@@ -54,12 +53,12 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route index element={<Navigate to="/home" replace />} />
-        <Route path="home" element={<HomePage />} />
+        <Route index element={<Navigate to="/match" replace />} />
         <Route path="match" element={<MatchPage />} />
         <Route path="ranking" element={<RankingPage />} />
         <Route path="profile" element={<ProfilePage />} />
-        <Route path="*" element={<Navigate to="/home" replace />} />
+        <Route path="home" element={<Navigate to="/match" replace />} />
+        <Route path="*" element={<Navigate to="/match" replace />} />
       </Route>
     </Routes>
   );
