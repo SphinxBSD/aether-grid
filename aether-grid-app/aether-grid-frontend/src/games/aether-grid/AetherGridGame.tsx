@@ -1121,31 +1121,111 @@ export function AetherGridGame({
       ? Math.abs(Number(player2Guess) - Number(winningNumber))
       : null;
 
-  return (
-    <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-8 shadow-xl border-2 border-purple-200">
-      <div className="flex items-center mb-6">
-        <div>
-          <h2 className="text-3xl font-black bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent">
-            Aether Grid
-          </h2>
-          <p className="text-sm text-gray-700 font-semibold mt-1">
+  // Layout tipo combate: mapa a pantalla completa, fondo background.png visible, título centrado, UI estilo máquina izquierda/derecha
+  if (gamePhase === 'guess' && gameState) {
+    return (
+      <div className="aether-grid-combat">
+        <div className="aether-grid-combat__map">
+          <AetherGame onFinish={handleBoardFinish} skipNextFinishRef={skipNextFinishRef} />
+        </div>
+        {/* <h2 className="aether-grid-combat__title" aria-live="polite">
+          <span className="aether-grid-combat__title-text">
             Encuentra el objeto en el tablero. Gana quien menos energía gaste.
-          </p>
-          <p className="text-xs text-gray-500 font-mono mt-1">
-            Session ID: {sessionId}
-          </p>
+          </span>
+        </h2> */}
+        <div className="aether-grid-combat__ui aether-grid-combat__ui--left" aria-label="Jugador 1">
+          <div className="aether-grid-combat-card">
+            <div className="aether-grid-combat-card__header">JUGADOR 1</div>
+            {/* <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Sesión</div>
+              <div className="aether-grid-combat-card__value aether-grid-combat-card__value--cyan">{sessionId}</div>
+            </div> */}
+            {error && (
+              <div className="aether-grid-combat-card__section">
+                <p className="aether-grid-combat-msg aether-grid-combat-msg--error">{error}</p>
+              </div>
+            )}
+            {success && (
+              <div className="aether-grid-combat-card__section">
+                <p className="aether-grid-combat-msg aether-grid-combat-msg--success">{success}</p>
+              </div>
+            )}
+            <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Wallet</div>
+              <div className="aether-grid-combat-card__value">{gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}</div>
+            </div>
+            <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Puntos</div>
+              <div className="aether-grid-combat-card__value">{(Number(gameState.player1_points) / 10000000).toFixed(2)}</div>
+            </div>
+            <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Estado</div>
+              {gameState.player1_guess != null ? (
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Enviado</span>
+              ) : (
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Esperando...</span>
+              )}
+            </div>
+            {(isPlayer1 || isPlayer2) && !hasGuessed && (
+              <div className="aether-grid-combat-card__section">
+                {boardPhase === 'FINISHED' && (
+                  <button
+                    type="button"
+                    onClick={() => handleBoardFinish(boardEnergy)}
+                    disabled={loading}
+                    className="aether-grid-combat-btn"
+                  >
+                    {loading ? 'Enviando...' : 'Enviar energía'}
+                  </button>
+                )}
+                {loading && boardPhase !== 'FINISHED' && (
+                  <p className="aether-grid-combat-msg">Enviando energía...</p>
+                )}
+              </div>
+            )}
+            {hasGuessed && (
+              <div className="aether-grid-combat-card__section">
+                <p className="aether-grid-combat-msg aether-grid-combat-msg--success">✓ Ya enviaste tu energía. Esperando al otro jugador...</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="aether-grid-combat__ui aether-grid-combat__ui--right" aria-label="Jugador 2">
+          <div className="aether-grid-combat-card">
+            <div className="aether-grid-combat-card__header">JUGADOR 2</div>
+            <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Wallet</div>
+              <div className="aether-grid-combat-card__value">{gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}</div>
+            </div>
+            <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Puntos</div>
+              <div className="aether-grid-combat-card__value">{(Number(gameState.player2_points) / 10000000).toFixed(2)}</div>
+            </div>
+            <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Estado</div>
+              {gameState.player2_guess != null ? (
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Enviado</span>
+              ) : (
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Esperando...</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+    );
+  }
 
+  return (
+    <div className="aether-create-shell">
       {error && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl">
-          <p className="text-sm font-semibold text-red-700">{error}</p>
+        <div className="aether-create-message aether-create-message--error">
+          <p>{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
-          <p className="text-sm font-semibold text-green-700">{success}</p>
+        <div className="aether-create-message aether-create-message--success">
+          <p>{success}</p>
         </div>
       )}
 
@@ -1153,7 +1233,7 @@ export function AetherGridGame({
       {gamePhase === 'create' && (
         <div className="space-y-6">
           {/* Mode Toggle */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 p-2 bg-gray-100 rounded-xl">
+          <div className="aether-create-tabs">
             <button
               onClick={() => {
                 setCreateMode('create');
@@ -1165,11 +1245,7 @@ export function AetherGridGame({
                 setImportPlayer2Points(DEFAULT_POINTS);
                 setLoadSessionId('');
               }}
-              className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
-                createMode === 'create'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`aether-create-tab ${createMode === 'create' ? 'aether-create-tab--active' : ''}`}
             >
               Create & Export
             </button>
@@ -1179,11 +1255,7 @@ export function AetherGridGame({
                 setExportedAuthEntryXDR(null);
                 setLoadSessionId('');
               }}
-              className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
-                createMode === 'import'
-                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`aether-create-tab ${createMode === 'import' ? 'aether-create-tab--active' : ''}`}
             >
               Import Auth Entry
             </button>
@@ -1197,116 +1269,98 @@ export function AetherGridGame({
                 setImportPlayer1Points('');
                 setImportPlayer2Points(DEFAULT_POINTS);
               }}
-              className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all ${
-                createMode === 'load'
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`aether-create-tab ${createMode === 'load' ? 'aether-create-tab--active' : ''}`}
             >
               Load Existing Game
             </button>
           </div>
 
-          <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold text-yellow-900">⚡ Quickstart (Dev)</p>
-                <p className="text-xs font-semibold text-yellow-800">
-                  Creates and signs for both dev wallets in one click. Works only in the Games Library.
-                </p>
-              </div>
-              <button
-                onClick={handleQuickStart}
-                disabled={isBusy || !quickstartAvailable}
-                className="px-4 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none"
-              >
-                {quickstartLoading ? 'Quickstarting...' : '⚡ Quickstart Game'}
-              </button>
+          <div className="aether-create-quickstart">
+            <div className="aether-create-quickstart__content">
+              <p className="aether-create-quickstart__title">⚡ Quickstart (Dev)</p>
+              <p className="aether-create-quickstart__desc">
+                Creates and signs for both dev wallets in one click. Works only in the Games Library.
+              </p>
             </div>
+            <button
+              onClick={handleQuickStart}
+              disabled={isBusy || !quickstartAvailable}
+              className="aether-create-quickstart__btn"
+            >
+              {quickstartLoading ? 'Quickstarting...' : '⚡ Quickstart Game'}
+            </button>
           </div>
 
           {createMode === 'create' ? (
-            <div className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Your Address (Player 1)
-              </label>
+            <div className="aether-create-form">
+          <div className="aether-create-form__fields">
+            <div className="aether-create-field">
+              <label className="aether-create-label">Your Address (Player 1)</label>
               <input
                 type="text"
                 value={player1Address}
                 onChange={(e) => setPlayer1Address(e.target.value.trim())}
                 placeholder="G..."
-                className="w-full px-4 py-3 rounded-xl bg-white border-2 border-gray-200 focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100 text-sm font-medium text-gray-700"
+                className="aether-create-input"
               />
-              <p className="text-xs font-semibold text-gray-600 mt-1">
+              <p className="aether-create-hint">
                 Pre-filled from your connected wallet. If you change it, you must be able to sign as that address.
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Your Points
-              </label>
+            <div className="aether-create-field">
+              <label className="aether-create-label">Your Points</label>
               <input
                 type="text"
                 value={player1Points}
                 onChange={(e) => setPlayer1Points(e.target.value)}
                 placeholder="0.1"
-                className="w-full px-4 py-3 rounded-xl bg-white border-2 border-gray-200 focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100 text-sm font-medium"
+                className="aether-create-input"
               />
-              <p className="text-xs font-semibold text-gray-600 mt-1">
+              <p className="aether-create-hint">
                 Available: {(Number(availablePoints) / 10000000).toFixed(2)} Points
               </p>
             </div>
 
-            <div className="p-3 bg-blue-50 border-2 border-blue-200 rounded-xl">
-              <p className="text-xs font-semibold text-blue-800">
-                ℹ️ Player 2 will specify their own address and points when they import your auth entry. You only need to prepare and export your signature.
-              </p>
+            <div className="aether-create-info">
+              <p>ℹ️ Player 2 will specify their own address and points when they import your auth entry. You only need to prepare and export your signature.</p>
             </div>
           </div>
 
-          <div className="pt-4 border-t-2 border-gray-100 space-y-4">
-            <p className="text-xs font-semibold text-gray-600">
-              Session ID: {sessionId}
-            </p>
+          <div className="aether-create-form__actions">
+            <p className="aether-create-session">Session ID: {sessionId}</p>
 
             {!exportedAuthEntryXDR ? (
               <button
                 onClick={handlePrepareTransaction}
                 disabled={isBusy}
-                className="w-full py-4 rounded-xl font-bold text-white text-sm bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+                className="aether-create-btn aether-create-btn--primary"
               >
                 {loading ? 'Preparing...' : 'Prepare & Export Auth Entry'}
               </button>
             ) : (
-              <div className="space-y-3">
-                <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
-                  <p className="text-xs font-bold uppercase tracking-wide text-green-700 mb-2">
-                    Auth Entry XDR (Player 1 Signed)
-                  </p>
-                  <div className="bg-white p-3 rounded-lg border border-green-200 mb-3">
-                    <code className="text-xs font-mono text-gray-700 break-all">
-                      {exportedAuthEntryXDR}
-                    </code>
+              <div className="aether-create-export">
+                <div className="aether-create-export__box">
+                  <p className="aether-create-export__title">Auth Entry XDR (Player 1 Signed)</p>
+                  <div className="aether-create-export__code">
+                    <code>{exportedAuthEntryXDR}</code>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="aether-create-export__btns">
                     <button
                       onClick={copyAuthEntryToClipboard}
-                      className="py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg transform hover:scale-105"
+                      className="aether-create-btn aether-create-btn--secondary"
                     >
                       {authEntryCopied ? '✓ Copied!' : '📋 Copy Auth Entry'}
                     </button>
                     <button
                       onClick={copyShareGameUrlWithAuthEntry}
-                      className="py-3 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg transform hover:scale-105"
+                      className="aether-create-btn aether-create-btn--secondary"
                     >
                       {shareUrlCopied ? '✓ Copied!' : '🔗 Share URL'}
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-600 text-center font-semibold">
+                <p className="aether-create-export__hint">
                   Copy the auth entry XDR or share URL with Player 2 to complete the transaction
                 </p>
               </div>
@@ -1315,40 +1369,27 @@ export function AetherGridGame({
             </div>
           ) : createMode === 'import' ? (
             /* IMPORT MODE */
-            <div className="space-y-4">
-              <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl">
-                <p className="text-sm font-semibold text-blue-800 mb-2">
-                  📥 Import Auth Entry from Player 1
-                </p>
-                <p className="text-xs text-gray-700 mb-4">
+            <div className="aether-create-form">
+              <div className="aether-create-export__box">
+                <p className="aether-create-export__title">📥 Import Auth Entry from Player 1</p>
+                <p className="aether-create-hint" style={{ marginBottom: '1rem' }}>
                   Paste the auth entry XDR from Player 1. Session ID, Player 1 address, and their points will be auto-extracted. You only need to enter your points amount.
                 </p>
-                <div className="space-y-3">
+                <div className="aether-create-form__fields">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-2">
+                    <label className="aether-create-label">
                       Auth Entry XDR
-                      {xdrParsing && (
-                        <span className="text-blue-500 text-xs animate-pulse">Parsing...</span>
-                      )}
-                      {xdrParseSuccess && (
-                        <span className="text-green-600 text-xs">✓ Parsed successfully</span>
-                      )}
-                      {xdrParseError && (
-                        <span className="text-red-600 text-xs">✗ Parse failed</span>
-                      )}
+                      {xdrParsing && <span className="aether-create-hint" style={{ marginLeft: '0.5rem' }}>Parsing...</span>}
+                      {xdrParseSuccess && <span style={{ marginLeft: '0.5rem', color: '#67e8f9', fontSize: '0.7rem' }}>✓ Parsed</span>}
+                      {xdrParseError && <span style={{ marginLeft: '0.5rem', color: '#fca5a5', fontSize: '0.7rem' }}>✗ Parse failed</span>}
                     </label>
                     <textarea
                       value={importAuthEntryXDR}
                       onChange={(e) => setImportAuthEntryXDR(e.target.value)}
                       placeholder="Paste Player 1's signed auth entry XDR here..."
                       rows={4}
-                      className={`w-full px-4 py-3 rounded-xl bg-white border-2 focus:outline-none focus:ring-4 text-xs font-mono resize-none transition-colors ${
-                        xdrParseError
-                          ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-                          : xdrParseSuccess
-                          ? 'border-green-300 focus:border-green-400 focus:ring-green-100'
-                          : 'border-blue-200 focus:border-blue-400 focus:ring-blue-100'
-                      }`}
+                      className={`aether-create-input ${xdrParseError ? 'aether-create-input--error' : ''}`}
+                      style={{ resize: 'none', minHeight: '100px' }}
                     />
                     {xdrParseError && (
                       <p className="text-xs text-red-600 font-semibold mt-1">
@@ -1358,56 +1399,32 @@ export function AetherGridGame({
                   </div>
                   {/* Auto-populated fields from auth entry (read-only) */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 mb-1">Session ID (auto-filled)</label>
-                      <input
-                        type="text"
-                        value={importSessionId}
-                        readOnly
-                        placeholder="Auto-filled from auth entry"
-                        className="w-full px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-200 text-xs font-mono text-gray-600 cursor-not-allowed"
-                      />
+                    <div className="aether-create-field">
+                      <label className="aether-create-label">Session ID (auto-filled)</label>
+                      <input type="text" value={importSessionId} readOnly placeholder="Auto-filled from auth entry" className="aether-create-input aether-create-input--readonly" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 mb-1">Player 1 Points (auto-filled)</label>
-                      <input
-                        type="text"
-                        value={importPlayer1Points}
-                        readOnly
-                        placeholder="Auto-filled from auth entry"
-                        className="w-full px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-200 text-xs text-gray-600 cursor-not-allowed"
-                      />
+                    <div className="aether-create-field">
+                      <label className="aether-create-label">Player 1 Points (auto-filled)</label>
+                      <input type="text" value={importPlayer1Points} readOnly placeholder="Auto-filled from auth entry" className="aether-create-input aether-create-input--readonly" />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Player 1 Address (auto-filled)</label>
-                    <input
-                      type="text"
-                      value={importPlayer1}
-                      readOnly
-                      placeholder="Auto-filled from auth entry"
-                      className="w-full px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-200 text-xs font-mono text-gray-600 cursor-not-allowed"
-                    />
+                  <div className="aether-create-field">
+                    <label className="aether-create-label">Player 1 Address (auto-filled)</label>
+                    <input type="text" value={importPlayer1} readOnly placeholder="Auto-filled from auth entry" className="aether-create-input aether-create-input--readonly" />
                   </div>
-                  {/* User inputs */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 mb-1">Player 2 (You)</label>
-                      <input
-                        type="text"
-                        value={userAddress}
-                        readOnly
-                        className="w-full px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-200 text-xs font-mono text-gray-600 cursor-not-allowed"
-                      />
+                    <div className="aether-create-field">
+                      <label className="aether-create-label">Player 2 (You)</label>
+                      <input type="text" value={userAddress} readOnly className="aether-create-input aether-create-input--readonly" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Your Points *</label>
+                    <div className="aether-create-field">
+                      <label className="aether-create-label">Your Points *</label>
                       <input
                         type="text"
                         value={importPlayer2Points}
                         onChange={(e) => setImportPlayer2Points(e.target.value)}
                         placeholder="e.g., 0.1"
-                        className="w-full px-4 py-2 rounded-xl bg-white border-2 border-blue-200 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 text-xs"
+                        className="aether-create-input"
                       />
                     </div>
                   </div>
@@ -1417,35 +1434,29 @@ export function AetherGridGame({
               <button
                 onClick={handleImportTransaction}
                 disabled={isBusy || !importAuthEntryXDR.trim() || !importPlayer2Points.trim()}
-                className="w-full py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 disabled:transform-none"
+                className="aether-create-btn aether-create-btn--primary"
               >
                 {loading ? 'Importing & Signing...' : 'Import & Sign Auth Entry'}
               </button>
             </div>
           ) : createMode === 'load' ? (
             /* LOAD EXISTING GAME MODE */
-            <div className="space-y-4">
-              <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl">
-                <p className="text-sm font-semibold text-green-800 mb-2">
-                  🎮 Load Existing Game by Session ID
-                </p>
-                <p className="text-xs text-gray-700 mb-4">
-                  Enter a session ID to load and continue an existing game. You must be one of the players.
-                </p>
+            <div className="aether-create-form">
+              <div className="aether-create-export__box">
+                <p className="aether-create-export__title">🎮 Load Existing Game by Session ID</p>
+                <p className="aether-create-hint" style={{ marginBottom: '0.75rem' }}>Enter a session ID to load and continue an existing game. You must be one of the players.</p>
                 <input
                   type="text"
                   value={loadSessionId}
                   onChange={(e) => setLoadSessionId(e.target.value)}
                   placeholder="Enter session ID (e.g., 123456789)"
-                  className="w-full px-4 py-3 rounded-xl bg-white border-2 border-green-200 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-100 text-sm font-mono"
+                  className="aether-create-input"
                 />
               </div>
 
-              <div className="p-4 bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-xl">
-                <p className="text-xs font-bold text-yellow-800 mb-2">
-                  Requirements
-                </p>
-                <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
+              <div className="aether-create-info">
+                <p className="aether-create-export__title" style={{ marginBottom: '0.5rem' }}>Requirements</p>
+                <ul className="aether-create-hint" style={{ margin: 0, paddingLeft: '1.25rem' }}>
                   <li>You must be Player 1 or Player 2 in the game</li>
                   <li>Game must be active (not completed)</li>
                   <li>Valid session ID from an existing game</li>
@@ -1456,127 +1467,35 @@ export function AetherGridGame({
                 <button
                   onClick={handleLoadExistingGame}
                   disabled={isBusy || !loadSessionId.trim()}
-                  className="py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 disabled:transform-none"
+                  className="aether-create-btn aether-create-btn--primary"
                 >
                   {loading ? 'Loading...' : '🎮 Load Game'}
                 </button>
                 <button
                   onClick={copyShareGameUrlWithSessionId}
                   disabled={!loadSessionId.trim()}
-                  className="py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 disabled:transform-none"
+                  className="aether-create-btn aether-create-btn--secondary"
                 >
                   {shareUrlCopied ? '✓ Copied!' : '🔗 Share Game'}
                 </button>
               </div>
-              <p className="text-xs text-gray-600 text-center font-semibold">
-                Load the game to continue playing, or share the URL with another player
-              </p>
+              <p className="aether-create-export__hint">Load the game to continue playing, or share the URL with another player</p>
             </div>
           ) : null}
         </div>
       )}
 
-      {/* GUESS PHASE: tablero 3D para encontrar el objeto; al terminar se envía la energía on-chain */}
-      {gamePhase === 'guess' && gameState && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className={`p-5 rounded-xl border-2 ${isPlayer1 ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg' : 'border-gray-200 bg-white'}`}>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 1</div>
-              <div className="font-mono text-sm font-semibold mb-2 text-gray-800">
-                {gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}
-              </div>
-              <div className="text-xs font-semibold text-gray-600">
-                Puntos: {(Number(gameState.player1_points) / 10000000).toFixed(2)}
-              </div>
-              <div className="mt-3">
-                {gameState.player1_guess !== null && gameState.player1_guess !== undefined ? (
-                  <div className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs font-bold shadow-md">
-                    ✓ Enviado
-                  </div>
-                ) : (
-                  <div className="inline-block px-3 py-1 rounded-full bg-gray-200 text-gray-600 text-xs font-bold">
-                    Esperando...
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className={`p-5 rounded-xl border-2 ${isPlayer2 ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg' : 'border-gray-200 bg-white'}`}>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 2</div>
-              <div className="font-mono text-sm font-semibold mb-2 text-gray-800">
-                {gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}
-              </div>
-              <div className="text-xs font-semibold text-gray-600">
-                Puntos: {(Number(gameState.player2_points) / 10000000).toFixed(2)}
-              </div>
-              <div className="mt-3">
-                {gameState.player2_guess !== null && gameState.player2_guess !== undefined ? (
-                  <div className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs font-bold shadow-md">
-                    ✓ Enviado
-                  </div>
-                ) : (
-                  <div className="inline-block px-3 py-1 rounded-full bg-gray-200 text-gray-600 text-xs font-bold">
-                    Esperando...
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {(isPlayer1 || isPlayer2) && !hasGuessed && (
-            <div className="space-y-3">
-              <p className="text-sm font-bold text-gray-700">
-                Encuentra el objeto en el tablero. Gana quien menos energía gaste.
-              </p>
-              {boardPhase === 'FINISHED' && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-amber-800">Encontraste el objeto. Envía tu energía al contrato:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleBoardFinish(boardEnergy)}
-                    disabled={loading}
-                    className="px-4 py-2 rounded-lg font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
-                  >
-                    {loading ? 'Enviando...' : 'Enviar energía'}
-                  </button>
-                </div>
-              )}
-              {loading && boardPhase !== 'FINISHED' && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-medium">
-                  Enviando energía...
-                </div>
-              )}
-              <div className="rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-900" style={{ minHeight: '420px' }}>
-                <AetherGame onFinish={handleBoardFinish} skipNextFinishRef={skipNextFinishRef} />
-              </div>
-            </div>
-          )}
-
-          {hasGuessed && (
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl">
-              <p className="text-sm font-semibold text-blue-700">
-                ✓ Ya enviaste tu energía. Esperando al otro jugador...
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* REVEAL PHASE */}
       {gamePhase === 'reveal' && gameState && (
-        <div className="space-y-6">
-          <div className="p-8 bg-gradient-to-br from-yellow-50 via-orange-50 to-amber-50 border-2 border-yellow-300 rounded-2xl text-center shadow-xl">
-            <div className="text-6xl mb-4">🎊</div>
-            <h3 className="text-2xl font-black text-gray-900 mb-3">
-              ¡Ambos jugadores han terminado!
-            </h3>
-            <p className="text-sm font-semibold text-gray-700 mb-6">
-              Haz clic para revelar al ganador (quien menos energía gastó)
-            </p>
+        <div className="aether-create-form">
+          <div className="aether-reveal-box">
+            <div className="aether-reveal-box__icon">🎊</div>
+            <h3 className="aether-reveal-box__title">¡Ambos jugadores han terminado!</h3>
+            <p className="aether-reveal-box__desc">Haz clic para revelar al ganador (quien menos energía gastó)</p>
             <button
               onClick={handleRevealWinner}
               disabled={isBusy}
-              className="px-10 py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-yellow-500 via-orange-500 to-amber-500 hover:from-yellow-600 hover:via-orange-600 hover:to-amber-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 disabled:transform-none"
+              className="aether-create-btn aether-create-btn--primary"
             >
               {loading ? 'Revelando...' : 'Revelar ganador'}
             </button>
@@ -1586,58 +1505,32 @@ export function AetherGridGame({
 
       {/* COMPLETE PHASE */}
       {gamePhase === 'complete' && gameState && (
-        <div className="space-y-6">
-          <div className="p-10 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-300 rounded-2xl text-center shadow-2xl">
-            <div className="text-7xl mb-6">🏆</div>
-            <h3 className="text-3xl font-black text-gray-900 mb-4">
-              ¡Juego completado!
-            </h3>
-            <p className="text-sm font-semibold text-gray-700 mb-6">
-              Gana quien menos energía gastó
-            </p>
-            <div className="space-y-3 mb-6">
-              <div className="p-4 bg-white/70 border border-green-200 rounded-xl">
-                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 1</p>
-                <p className="font-mono text-xs text-gray-700 mb-2">
-                  {gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}
-                </p>
-                <p className="text-sm font-semibold text-gray-800">
-                  Energía: {gameState.player1_guess ?? '—'}
-                  {player1Distance !== null ? ` (distancia ${player1Distance})` : ''}
-                </p>
-              </div>
-
-              <div className="p-4 bg-white/70 border border-green-200 rounded-xl">
-                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 2</p>
-                <p className="font-mono text-xs text-gray-700 mb-2">
-                  {gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}
-                </p>
-                <p className="text-sm font-semibold text-gray-800">
-                  Energía: {gameState.player2_guess ?? '—'}
-                  {player2Distance !== null ? ` (distancia ${player2Distance})` : ''}
-                </p>
-              </div>
+        <div className="aether-create-form">
+          <div className="aether-reveal-box">
+            <div className="aether-reveal-box__icon">🏆</div>
+            <h3 className="aether-reveal-box__title">¡Juego completado!</h3>
+            <p className="aether-reveal-box__desc">Gana quien menos energía gastó</p>
+            <div className="aether-create-export__box" style={{ textAlign: 'left', marginTop: '1rem', marginBottom: '1rem' }}>
+              <p className="aether-create-export__title">Jugador 1</p>
+              <p className="aether-create-hint">{gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}</p>
+              <p className="aether-create-label">Energía: {gameState.player1_guess ?? '—'}{player1Distance !== null ? ` (distancia ${player1Distance})` : ''}</p>
+            </div>
+            <div className="aether-create-export__box" style={{ textAlign: 'left', marginBottom: '1rem' }}>
+              <p className="aether-create-export__title">Jugador 2</p>
+              <p className="aether-create-hint">{gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}</p>
+              <p className="aether-create-label">Energía: {gameState.player2_guess ?? '—'}{player2Distance !== null ? ` (distancia ${player2Distance})` : ''}</p>
             </div>
             {gameState.winner && (
-              <div className="mt-6 p-5 bg-white border-2 border-green-200 rounded-xl shadow-lg">
-                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-2">Ganador</p>
-                <p className="font-mono text-sm font-bold text-gray-800">
-                  {gameState.winner.slice(0, 8)}...{gameState.winner.slice(-4)}
-                </p>
-                {gameState.winner === userAddress && (
-                  <p className="mt-3 text-green-700 font-black text-lg">
-                    🎉 ¡Ganaste!
-                  </p>
-                )}
+              <div className="aether-create-export__box" style={{ borderColor: 'rgba(0, 212, 255, 0.5)' }}>
+                <p className="aether-create-export__title">Ganador</p>
+                <p className="aether-create-label">{gameState.winner.slice(0, 8)}...{gameState.winner.slice(-4)}</p>
+                {gameState.winner === userAddress && <p className="aether-create-message aether-create-message--success" style={{ marginTop: '0.5rem', marginBottom: 0 }}>🎉 ¡Ganaste!</p>}
               </div>
             )}
+            <button onClick={handleStartNewGame} className="aether-create-btn aether-create-btn--secondary" style={{ marginTop: '1.25rem' }}>
+              Nueva partida
+            </button>
           </div>
-          <button
-            onClick={handleStartNewGame}
-            className="w-full py-4 rounded-xl font-bold text-gray-700 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            Nueva partida
-          </button>
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useAetherGameStore, type GamePhase, type ActivePower } from './gameStore';
 import './GameOverlay.css';
 
@@ -48,16 +49,12 @@ export function GameOverlay() {
   const messageAge = typeof lastMessageAt === 'number' ? performance.now() - lastMessageAt : 9999;
   const showMessage = lastMessage && messageAge < 3000;
 
+  useEffect(() => {
+    if (phase === 'IDLE') startGame();
+  }, [phase, startGame]);
+
   return (
     <div className="aether-overlay">
-      {phase === 'IDLE' && (
-        <div className="aether-overlay-start">
-          <button type="button" className="aether-btn aether-btn--start" onClick={startGame}>
-            Empezar
-          </button>
-        </div>
-      )}
-
       {(phase === 'SPAWN_SELECT' || phase === 'PLAYING' || phase === 'MOVING' || phase === 'FINISHED') && (
         <aside className="aether-console">
           <div className="aether-console-header">
@@ -67,6 +64,7 @@ export function GameOverlay() {
 
           <div className="aether-console-section">
             <div className="aether-console-label">Estado</div>
+            
             <p className="aether-status">
               {phase === 'FINISHED' ? phaseLabels.FINISHED : phaseLabels[phase]}
             </p>

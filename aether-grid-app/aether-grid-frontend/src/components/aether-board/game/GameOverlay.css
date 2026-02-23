@@ -19,6 +19,78 @@
   transform: translate(-50%, -50%);
 }
 
+/* Pantalla IDLE: estilo máquina, sin botón (arranque automático) */
+.aether-overlay-idle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  pointer-events: none;
+}
+
+.aether-overlay-idle__card {
+  min-width: 320px;
+  max-width: 420px;
+  background: linear-gradient(165deg, rgba(8, 14, 28, 0.97) 0%, rgba(12, 22, 42, 0.95) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.45);
+  box-shadow:
+    inset -2px 0 16px rgba(0, 0, 0, 0.5),
+    0 0 32px rgba(0, 212, 255, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.aether-overlay-idle__card-line {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+  opacity: 0.7;
+}
+
+.aether-overlay-idle__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.28);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.aether-overlay-idle__title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgba(0, 212, 255, 0.95);
+}
+
+.aether-overlay-idle__badge {
+  font-size: 0.65rem;
+  padding: 3px 10px;
+  border: 1px solid rgba(0, 212, 255, 0.45);
+  color: rgba(0, 212, 255, 0.95);
+  letter-spacing: 0.12em;
+}
+
+.aether-overlay-idle__body {
+  padding: 20px 18px 24px;
+}
+
+.aether-overlay-idle__objective {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+}
+
+.aether-overlay-idle__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(0, 212, 255, 0.85);
+  letter-spacing: 0.05em;
+}
+
 /* ——— Consola derecha (estilo máquina) ——— */
 .aether-console {
   width: 280px;

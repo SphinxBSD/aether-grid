@@ -5,8 +5,10 @@
 }
 
 .match-page--game {
-  max-width: 900px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 .match-page--game .aether-game {
@@ -19,4 +21,523 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* Layout tipo combate: mapa a pantalla completa, UI en esquinas */
+.aether-grid-combat {
+  width: 100%;
+  min-height: calc(100vh - 120px);
+}
+
+.aether-grid-combat__map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: transparent;
+}
+
+.aether-grid-combat__map .aether-game {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+.aether-grid-combat__map .aether-game canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.aether-grid-combat__ui {
+  position: absolute;
+  top: 1rem;
+  z-index: 20;
+  pointer-events: auto;
+  max-width: 320px;
+}
+
+.aether-grid-combat__ui--left {
+  left: 1rem;
+}
+
+.aether-grid-combat__ui--right {
+  right: 1rem;
+}
+
+/* Dejar espacio a la consola SISTEMA (~280px) para no taparla */
+@media (min-width: 640px) {
+  .aether-grid-combat__ui--right {
+    right: 296px;
+  }
+}
+
+/* Paneles estilo máquina (como SISTEMA): oscuro, borde cyan, secciones */
+.aether-grid-combat-card {
+  width: 100%;
+  min-width: 260px;
+  max-width: 320px;
+  background: linear-gradient(165deg, rgba(8, 14, 28, 0.95) 0%, rgba(12, 22, 42, 0.92) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  box-shadow:
+    inset -2px 0 12px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(0, 212, 255, 0.08);
+  border-radius: 8px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.aether-grid-combat-card::before {
+  content: '';
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+  opacity: 0.6;
+}
+
+.aether-grid-combat-card__header {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgba(0, 212, 255, 0.95);
+}
+
+.aether-grid-combat-card__section {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+}
+
+.aether-grid-combat-card__section:last-child {
+  border-bottom: none;
+}
+
+.aether-grid-combat-card__label {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.aether-grid-combat-card__value {
+  font-size: 0.85rem;
+  font-family: ui-monospace, monospace;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.aether-grid-combat-card__value--cyan {
+  color: #00d4ff;
+}
+
+.aether-grid-combat-card__badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.aether-grid-combat-card__badge--sent {
+  background: rgba(0, 200, 140, 0.3);
+  color: #00ffaa;
+  border: 1px solid rgba(0, 200, 140, 0.5);
+}
+
+.aether-grid-combat-card__badge--waiting {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.aether-grid-combat-card .aether-grid-combat-btn {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  background: linear-gradient(135deg, #ff9500, #e87500);
+  color: #1a0a00;
+  margin-top: 8px;
+}
+
+.aether-grid-combat-card .aether-grid-combat-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.aether-grid-combat-card .aether-grid-combat-msg {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 6px;
+}
+
+.aether-grid-combat-card .aether-grid-combat-msg--error {
+  color: #ff6b6b;
+}
+
+.aether-grid-combat-card .aether-grid-combat-msg--success {
+  color: #00ffaa;
+}
+
+/* Título principal del combate: centrado arriba */
+.aether-grid-combat__title {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  pointer-events: none;
+  text-align: center;
+  padding: 0 1rem;
+  max-width: 90%;
+}
+
+.aether-grid-combat__title-text {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.15), transparent);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  display: inline-block;
+}
+
+@media (min-width: 640px) {
+  .aether-grid-combat__title-text {
+    font-size: 1.15rem;
+  }
+}
+
+/* ——— Pantalla Create / Import / Load: estilo máquina (sin morado ni naranja) ——— */
+.aether-create-shell {
+  max-width: 42rem;
+  margin: 1.25rem auto;
+  padding: 1.5rem;
+  background: linear-gradient(165deg, rgba(8, 14, 28, 0.96) 0%, rgba(12, 22, 42, 0.94) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 32px rgba(0, 212, 255, 0.08);
+  border-radius: 12px;
+}
+
+.aether-create-shell::before {
+  content: '';
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+  opacity: 0.6;
+  margin-bottom: 1rem;
+  border-radius: 12px 12px 0 0;
+}
+
+.aether-create-message {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.aether-create-message--error {
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  color: #fca5a5;
+}
+
+.aether-create-message--success {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  color: #67e8f9;
+}
+
+.aether-create-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.aether-create-tab {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.aether-create-tab:hover {
+  background: rgba(0, 212, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.aether-create-tab--active {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.5);
+  color: #00d4ff;
+}
+
+.aether-create-quickstart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 10px;
+}
+
+.aether-create-quickstart__title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(0, 212, 255, 0.95);
+  margin: 0 0 0.25rem 0;
+}
+
+.aether-create-quickstart__desc {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+}
+
+.aether-create-quickstart__btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  background: linear-gradient(135deg, #00d4ff, #0891b2);
+  color: #0c1220;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.aether-create-quickstart__btn:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: scale(1.02);
+}
+
+.aether-create-quickstart__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aether-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.aether-create-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.aether-create-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.aether-create-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.aether-create-input {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-family: ui-monospace, monospace;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: rgba(255, 255, 255, 0.95);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.aether-create-input:focus {
+  border-color: rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+}
+
+.aether-create-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.aether-create-input--readonly {
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+.aether-create-input--error {
+  border-color: rgba(220, 38, 38, 0.5);
+}
+
+.aether-create-hint {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.aether-create-info {
+  padding: 0.75rem 1rem;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 8px;
+}
+
+.aether-create-info p {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.aether-create-form__actions {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 212, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.aether-create-session {
+  font-size: 0.75rem;
+  font-family: ui-monospace, monospace;
+  color: rgba(0, 212, 255, 0.8);
+  margin: 0;
+}
+
+.aether-create-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.aether-create-btn--primary {
+  background: linear-gradient(135deg, #00d4ff, #0891b2);
+  color: #0c1220;
+  border-color: rgba(0, 212, 255, 0.5);
+}
+
+.aether-create-btn--primary:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: scale(1.01);
+}
+
+.aether-create-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aether-create-btn--secondary {
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+  background: rgba(0, 212, 255, 0.15);
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  color: #00d4ff;
+}
+
+.aether-create-btn--secondary:hover {
+  background: rgba(0, 212, 255, 0.25);
+}
+
+.aether-create-export {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.aether-create-export__box {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 10px;
+}
+
+.aether-create-export__title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(0, 212, 255, 0.9);
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+}
+
+.aether-create-export__code {
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+}
+
+.aether-create-export__code code {
+  font-size: 0.7rem;
+  font-family: ui-monospace, monospace;
+  color: rgba(255, 255, 255, 0.9);
+  word-break: break-all;
+}
+
+.aether-create-export__btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.aether-create-export__hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  margin: 0;
+}
+
+.aether-reveal-box {
+  padding: 2rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 12px;
+}
+
+.aether-reveal-box__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.aether-reveal-box__title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 0.5rem 0;
+}
+
+.aether-reveal-box__desc {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 1.25rem 0;
 }
