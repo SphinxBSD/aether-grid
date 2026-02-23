@@ -81,12 +81,21 @@ async function main() {
     
     console.log("==> 4) Deploy the verifier contract locally");
     // Stellar CLI outputs some logging and then the ID on the last line or sth similar
-    const deployCmd = await $`stellar contract deploy \
-        --wasm ${wasmPath} \
-        --network local \
-        --source alice \
-        -- \
-        --vk_bytes-file-path ${join(map1CircuitDir, "target", "vk")}`.cwd(contractDir).text();
+    let deployCmd: string;
+    try {
+        deployCmd = await $`stellar contract deploy \
+            --wasm ${wasmPath} \
+            --network local \
+            --source alice \
+            -- \
+            --vk_bytes-file-path ${join(map1CircuitDir, "target", "vk")}`.cwd(contractDir).text();
+    } catch (e: any) {
+        const stderr = (e?.stderr ?? String(e)) as string;
+        if (stderr.includes("Account not found")) {
+            console.error("    La cuenta 'alice' no existe en la red local. Ejecuta: stellar keys fund alice --network local");
+        }
+        throw e;
+    }
         
     const deployOutputLines = deployCmd.trim().split("\n");
     let cid = "";
@@ -116,22 +125,28 @@ async function main() {
     await writeFile(deploymentPath, JSON.stringify(deploymentInfo, null, 2) + "\n");
     console.log(`    -> Saved verifier ID to local-deployment.json`);
     
+    // Verifier ZK needs high resource limits: start local network with --limits unlimited.
+    // instruction-leeway must fit in u32 (max 4294967295); 2B is safe and gives headroom.
+    const instructionLeeway = "2000000000";
     console.log("==> 5) Verify proof (simulation, --send no)");
+    console.log("    (Si falla Budget ExceededLimit, reinicia la red con: docker run ... stellar/quickstart --local --limits unlimited ...)");
     await $`stellar contract invoke \
         --id ${cid} \
         --network local \
         --source alice \
+        --instruction-leeway ${instructionLeeway} \
         --send no \
         -- \
         verify_proof \
         --public_inputs-file-path ${join(map1CircuitDir, "target", "public_inputs")} \
         --proof_bytes-file-path ${join(map1CircuitDir, "target", "proof")}`.cwd(contractDir);
-        
+
     console.log("==> 6) Verify proof on-chain (--send yes)");
     await $`stellar contract invoke \
         --id ${cid} \
         --network local \
         --source alice \
+        --instruction-leeway ${instructionLeeway} \
         --send yes \
         -- \
         verify_proof \
