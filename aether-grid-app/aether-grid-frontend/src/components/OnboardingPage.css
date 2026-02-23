@@ -1,0 +1,336 @@
+/* Onboarding carousel — neo-futuristic sci-fi, glassmorphism */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;600;700&display=swap");
+
+.onboarding-page {
+  --onboarding-glass: rgba(11, 16, 32, 0.28);
+  --onboarding-glass-border: rgba(0, 212, 255, 0.45);
+  --onboarding-glass-shadow: 0 0 20px rgba(0, 212, 255, 0.08);
+  --onboarding-radius: 18px;
+  --onboarding-cyan: #00d4ff;
+  --onboarding-orange: #e87500;
+  --onboarding-green: #00c853;
+  --onboarding-red: #ff5252;
+  --onboarding-font-title: "Orbitron", "Inter", sans-serif;
+  --onboarding-font-body: "Inter", sans-serif;
+
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+}
+
+/* Canvas fills available main; image covers it (no vertical scroll) */
+.onboarding-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  border-radius: var(--onboarding-radius);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.onboarding-slide-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.02);
+  /* Subtle zoom max ~1.08 centered; keep image crisp, no full-image blur */
+}
+
+.onboarding-slide-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  pointer-events: none;
+}
+
+.onboarding-slide-overlay > * {
+  pointer-events: auto;
+}
+
+/* Optional scanline texture */
+.onboarding-canvas::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.04) 2px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+  pointer-events: none;
+  opacity: 0.06;
+}
+
+/* Progress: 1/11 … 11/11 */
+.onboarding-progress {
+  flex-shrink: 0;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--onboarding-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--onboarding-glass-border);
+  border-radius: 999px;
+  box-shadow: var(--onboarding-glass-shadow);
+}
+
+.onboarding-progress-text {
+  font-family: var(--onboarding-font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--onboarding-cyan);
+  letter-spacing: 0.05em;
+}
+
+/* Nav: Back + Next / Start Match */
+.onboarding-nav {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 0 0.25rem;
+}
+
+.onboarding-nav-spacer {
+  flex: 1;
+}
+
+.onboarding-btn {
+  font-family: var(--onboarding-font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.5rem 1.25rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.onboarding-btn:focus-visible {
+  outline: 2px solid var(--onboarding-cyan);
+  outline-offset: 2px;
+}
+
+.onboarding-btn--primary {
+  background: linear-gradient(135deg, var(--onboarding-orange) 0%, #ff9f43 100%);
+  color: #0a0e1a;
+  box-shadow: 0 0 16px rgba(232, 117, 0, 0.35);
+}
+
+.onboarding-btn--primary:hover {
+  box-shadow: 0 0 24px rgba(232, 117, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.onboarding-btn--secondary {
+  background: var(--onboarding-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--onboarding-cyan);
+  border: 1px solid var(--onboarding-glass-border);
+}
+
+.onboarding-btn--secondary:hover {
+  box-shadow: var(--onboarding-glass-shadow);
+  transform: translateY(-1px);
+}
+
+/* Story panel (slides 1–3) */
+.onboarding-story-panel {
+  max-width: 420px;
+  padding: 1.25rem 1.5rem;
+  background: var(--onboarding-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--onboarding-glass-border);
+  border-radius: var(--onboarding-radius);
+  box-shadow: var(--onboarding-glass-shadow);
+}
+
+.onboarding-title {
+  font-family: var(--onboarding-font-title);
+  font-size: clamp(1.5rem, 3.5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.2;
+  text-shadow:
+    0 0 20px rgba(0, 212, 255, 0.4),
+    0 1px 2px rgba(0, 0, 0, 0.8),
+    0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.onboarding-body {
+  font-family: var(--onboarding-font-body);
+  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0;
+}
+
+/* Mechanics: title floats over image — needs strong contrast */
+.onboarding-title--mechanics {
+  margin-bottom: 0.5rem;
+  font-size: clamp(1.35rem, 3vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-shadow:
+    0 0 24px rgba(0, 212, 255, 0.5),
+    0 0 8px rgba(0, 0, 0, 1),
+    0 2px 4px rgba(0, 0, 0, 1),
+    1px 1px 0 rgba(0, 0, 0, 0.9);
+}
+
+/* Optional: glass bar behind mechanics title for extra readability */
+.onboarding-mechanics-header {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.25rem;
+  background: rgba(11, 16, 32, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--onboarding-glass-border);
+  border-radius: var(--onboarding-radius);
+  box-shadow: var(--onboarding-glass-shadow);
+}
+
+/* Skip (slides 1–3) */
+.onboarding-skip {
+  position: absolute;
+  top: clamp(1rem, 2vw, 1.5rem);
+  right: clamp(1rem, 2vw, 1.5rem);
+  font-family: var(--onboarding-font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.onboarding-skip:hover {
+  color: var(--onboarding-cyan);
+  background: rgba(0, 212, 255, 0.1);
+}
+
+/* Mechanics: badge STEP x/8 */
+.onboarding-badge {
+  display: inline-block;
+  padding: 0.3rem 0.7rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--onboarding-font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--onboarding-cyan);
+  background: var(--onboarding-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--onboarding-glass-border);
+  border-radius: 10px;
+  box-shadow: var(--onboarding-glass-shadow);
+}
+
+/* Callouts: glass panel + pointer line */
+.onboarding-callout {
+  position: absolute;
+  transform: translateY(-50%);
+  max-width: min(220px, 18vw);
+  pointer-events: auto;
+}
+
+.onboarding-callout-panel {
+  padding: 0.5rem 0.75rem;
+  font-family: var(--onboarding-font-body);
+  font-size: clamp(0.75rem, 1.1vw, 0.9rem);
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.95);
+  background: var(--onboarding-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--onboarding-glass-border);
+  border-radius: 12px;
+  box-shadow: var(--onboarding-glass-shadow);
+}
+
+.onboarding-callout-line {
+  position: absolute;
+  width: 20px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--onboarding-cyan), transparent);
+  opacity: 0.8;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.onboarding-callout[data-pointer="right"] .onboarding-callout-line {
+  left: 100%;
+  margin-left: 4px;
+}
+
+.onboarding-callout[data-pointer="left"] .onboarding-callout-line {
+  right: 100%;
+  margin-right: 4px;
+  left: auto;
+  background: linear-gradient(90deg, transparent, var(--onboarding-cyan));
+}
+
+.onboarding-callout[data-pointer="top"] .onboarding-callout-line {
+  bottom: 100%;
+  left: 50%;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  margin-bottom: 4px;
+  background: linear-gradient(180deg, transparent, var(--onboarding-cyan));
+}
+
+.onboarding-callout[data-pointer="bottom"] .onboarding-callout-line {
+  top: 100%;
+  left: 50%;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  margin-top: 4px;
+  background: linear-gradient(0deg, transparent, var(--onboarding-cyan));
+}
+
+.onboarding-callout[data-pointer="right"] .onboarding-callout-panel {
+  margin-left: 26px;
+}
+
+.onboarding-callout[data-pointer="left"] .onboarding-callout-panel {
+  margin-right: 26px;
+  margin-left: 0;
+}
+
+.onboarding-callout[data-pointer="top"] .onboarding-callout-panel,
+.onboarding-callout[data-pointer="bottom"] .onboarding-callout-panel {
+  margin-left: 0;
+}

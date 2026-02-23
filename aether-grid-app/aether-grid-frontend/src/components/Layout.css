@@ -51,6 +51,24 @@
   background: url("/background.png") center center / cover no-repeat;
 }
 
+/* Onboarding: no scroll, no background.png — subtle gradient only so slides stand out */
+.appMain:has(.onboarding-page) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: radial-gradient(ellipse 120% 100% at 50% 0%, rgba(15, 25, 45, 0.98) 0%, rgba(8, 12, 22, 0.99) 70%);
+}
+
+.appMain:has(.onboarding-page)::before {
+  display: none;
+}
+
+.appMain:has(.onboarding-page) > * {
+  flex: 1;
+  min-height: 0;
+}
+
 .appMain::before {
   content: '';
   position: absolute;
