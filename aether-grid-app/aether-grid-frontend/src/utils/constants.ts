@@ -67,9 +67,9 @@ export const DEV_PLAYER2_ADDRESS = import.meta.env.VITE_DEV_PLAYER2_ADDRESS || '
 export const RUNTIME_SIMULATION_SOURCE =
   runtimeConfig?.simulationSourceAddress || import.meta.env.VITE_SIMULATION_SOURCE_ADDRESS || '';
 
-// Transaction options
+// Transaction options (timeout para esperar confirmación; si falla, la UI hace polling a getGame)
 export const DEFAULT_METHOD_OPTIONS = {
-  timeoutInSeconds: 30,
+  timeoutInSeconds: 45,
 };
 
 // Auth TTL constants (in minutes)

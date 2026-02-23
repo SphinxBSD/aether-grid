@@ -5,7 +5,33 @@ import { useWallet } from '@/hooks/useWallet';
 import { AETHER_GRID_CONTRACT } from '@/utils/constants';
 import { getFundedSimulationSourceAddress } from '@/utils/simulationUtils';
 import { devWalletService, DevWalletService } from '@/services/devWalletService';
+import { AetherGame } from '@/components/aether-board';
+import {
+  useAetherGameStore,
+  persistSessionState,
+  restoreSessionState,
+  clearSessionStorage,
+} from '@/components/aether-board/game/gameStore';
 import type { Game } from './bindings';
+
+const PERSIST_DEBOUNCE_MS = 400;
+
+function useDebouncedPersist() {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const unsub = useAetherGameStore.subscribe(() => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        persistSessionState();
+        timeoutRef.current = null;
+      }, PERSIST_DEBOUNCE_MS);
+    });
+    return () => {
+      unsub();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+}
 
 const createRandomSessionId = (): number => {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -26,7 +52,7 @@ const aetherGridService = new AetherGridService(AETHER_GRID_CONTRACT);
 
 interface AetherGridGameProps {
   userAddress: string;
-  currentEpoch: number;
+  currentEpoch?: number;
   availablePoints: bigint;
   initialXDR?: string | null;
   initialSessionId?: number | null;
@@ -44,6 +70,8 @@ export function AetherGridGame({
 }: AetherGridGameProps) {
   const DEFAULT_POINTS = '0.1';
   const { getContractSigner, walletType } = useWallet();
+  const boardPhase = useAetherGameStore((s) => s.phase);
+  const boardEnergy = useAetherGameStore((s) => s.energy);
   // Use a random session ID that fits in u32 (avoid 0 because UI validation treats <=0 as invalid)
   const [sessionId, setSessionId] = useState<number>(() => createRandomSessionId());
   const [player1Address, setPlayer1Address] = useState(userAddress);
@@ -145,7 +173,7 @@ export function AetherGridGame({
 
   const loadGameState = async () => {
     try {
-      // Always fetch latest game state to avoid stale cached results after transactions.
+      requestCache.invalidate(createCacheKey('game-state', sessionId));
       const game = await aetherGridService.getGame(sessionId);
       setGameState(game);
 
@@ -157,6 +185,17 @@ export function AetherGridGame({
         setGamePhase('reveal');
       } else {
         setGamePhase('guess');
+      }
+
+      // No mostrar mensaje de éxito del otro jugador: si este usuario aún no ha enviado on-chain, limpiar success/loading
+      if (game && userAddress) {
+        const thisUserGuessed =
+          (game.player1 === userAddress && game.player1_guess != null) ||
+          (game.player2 === userAddress && game.player2_guess != null);
+        if (!thisUserGuessed) {
+          setSuccess(null);
+          setLoading(false);
+        }
       }
     } catch (err) {
       // Game doesn't exist yet
@@ -171,6 +210,78 @@ export function AetherGridGame({
       return () => clearInterval(interval);
     }
   }, [sessionId, gamePhase]);
+
+  const prevUserAddressRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (sessionId && gamePhase !== 'create' && prevUserAddressRef.current !== null && prevUserAddressRef.current !== userAddress) {
+      setError(null);
+      setSuccess(null);
+      setLoading(false);
+      lastGuessInitRef.current = null;
+      // Resetear tablero de inmediato para no enviar la energía del jugador anterior al hacer onFinish
+      const g = gameStateRef.current;
+      if (g?.player1 != null && g?.player2 != null) {
+        const playerNumber = g.player1 === userAddress ? 1 : 2;
+        const store = useAetherGameStore.getState();
+        store.reset();
+        store.initMatchGame(sessionId, playerNumber);
+        skipNextFinishRef.current = true;
+      }
+      loadGameState();
+    }
+    prevUserAddressRef.current = userAddress;
+  }, [userAddress, sessionId, gamePhase]);
+
+  // Persistir estado en memoria al cambiar (para no perder progreso al cambiar de wallet)
+  useDebouncedPersist();
+
+  const gameStateRef = useRef<Game | null>(gameState);
+  gameStateRef.current = gameState;
+  const revealPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (revealPollIntervalRef.current) {
+        clearInterval(revealPollIntervalRef.current);
+        revealPollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  const skipNextFinishRef = useRef(false);
+
+  // Reset síncrono del tablero al cambiar de wallet (en el mismo render, antes de que AetherGame lea el store).
+  // Así evitamos que onFinish(energy) se dispare con la energía del jugador anterior. No actualizamos prevUserAddressRef aquí para que el efecto de cambio de wallet siga llamando loadGameState().
+  if (sessionId && gamePhase !== 'create' && prevUserAddressRef.current !== null && prevUserAddressRef.current !== userAddress) {
+    const g = gameStateRef.current;
+    if (g?.player1 != null && g?.player2 != null) {
+      const pn = g.player1 === userAddress ? 1 : 2;
+      useAetherGameStore.getState().reset();
+      useAetherGameStore.getState().initMatchGame(sessionId, pn);
+      skipNextFinishRef.current = true;
+    }
+  }
+
+  // Solo al ENTRAR en fase guess (cambio de sesión o de wallet): restaurar o iniciar. No re-ejecutar cuando gameState se actualiza por polling (cada 5s) para no sobrescribir movimientos.
+  const lastGuessInitRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (gamePhase !== 'guess' || !sessionId) return;
+    const key = `${sessionId}-${userAddress}`;
+    if (lastGuessInitRef.current === key) return;
+    lastGuessInitRef.current = key;
+    const gameStateCurrent = gameStateRef.current;
+    if (!gameStateCurrent) return;
+    const playerNumber = gameStateCurrent.player1 === userAddress ? 1 : 2;
+    const restored = restoreSessionState(sessionId, playerNumber);
+    const store = useAetherGameStore.getState();
+    if (restored) {
+      if (restored.phase === 'FINISHED') skipNextFinishRef.current = true;
+      store.restoreState(restored);
+    } else {
+      store.reset();
+      store.initMatchGame(sessionId, playerNumber);
+    }
+  }, [gamePhase, sessionId, userAddress, gameState]);
 
   // Auto-refresh standings when game completes (for passive player who didn't call reveal_winner)
   useEffect(() => {
@@ -408,7 +519,7 @@ export function AetherGridGame({
 
         console.log('Transaction prepared successfully! Player 1 has signed their auth entry.');
         setExportedAuthEntryXDR(authEntryXDR);
-        setSuccess('Auth entry signed! Copy the auth entry XDR or share URL below and send it to Player 2. Waiting for them to sign...');
+        setSuccess('Firma lista. Copia el XDR o la URL y envíala al Jugador 2. Esperando a que el otro jugador empiece...');
 
         // Start polling for the game to be created by Player 2
         const pollInterval = setInterval(async () => {
@@ -820,6 +931,58 @@ export function AetherGridGame({
     });
   };
 
+  /** Cuando el jugador termina en el tablero (encuentra el objeto), envía su energía al contrato (1-10). */
+  const handleBoardFinish = async (energy: number) => {
+    await runAction(async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+
+        // No enviar si el tablero no corresponde al usuario actual (evita enviar por el otro jugador).
+        const store = useAetherGameStore.getState();
+        const currentPlayerNum = gameState?.player1 === userAddress ? 1 : gameState?.player2 === userAddress ? 2 : null;
+        if (currentPlayerNum == null || store.matchPlayerNumber !== currentPlayerNum) {
+          setError('El tablero no corresponde a tu jugador. Refresca o cambia de wallet.');
+          setLoading(false);
+          return;
+        }
+
+        requestCache.invalidate(createCacheKey('game-state', sessionId));
+        const fresh = await aetherGridService.getGame(sessionId);
+        const alreadySubmitted =
+          fresh &&
+          ((fresh.player1 === userAddress && fresh.player1_guess != null) ||
+            (fresh.player2 === userAddress && fresh.player2_guess != null));
+        if (alreadySubmitted) {
+          await loadGameState();
+          setSuccess('Ya habías enviado tu energía. Esperando al otro jugador...');
+          setLoading(false);
+          return;
+        }
+
+        // AUGUSTO ACA: enviar energía como valor 1-10 usando energía módulo 10 (0 → 10 para que sea válido)
+        const guessValue = energy % 10 || 10;
+        const signer = getContractSigner();
+        await aetherGridService.makeGuess(sessionId, userAddress, guessValue, signer);
+        requestCache.invalidate(createCacheKey('game-state', sessionId));
+        setSuccess(`Energía enviada: ${energy}. Esperando al otro jugador...`);
+        await loadGameState();
+      } catch (err) {
+        console.error('Submit energy error:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        const isAlreadyGuessed = msg.includes('AlreadyGuessed') || msg.includes('Contract, #3');
+        setError(
+          isAlreadyGuessed
+            ? 'Ya habías enviado tu energía. Si ves "Esperando...", refresca o espera a que el otro jugador termine.'
+            : msg || 'Error al enviar energía'
+        );
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
   const waitForWinner = async () => {
     let updatedGame = await aetherGridService.getGame(sessionId);
     let attempts = 0;
@@ -838,6 +1001,22 @@ export function AetherGridGame({
         setError(null);
         setSuccess(null);
 
+        requestCache.invalidate(createCacheKey('game-state', sessionId));
+        const freshGame = await aetherGridService.getGame(sessionId);
+        const bothGuessed =
+          freshGame &&
+          freshGame.player1_guess !== null &&
+          freshGame.player1_guess !== undefined &&
+          freshGame.player2_guess !== null &&
+          freshGame.player2_guess !== undefined;
+        if (!bothGuessed) {
+          setError(
+            'Ambos jugadores deben enviar su energía primero. Asegúrate de que el otro jugador haya terminado y enviado.'
+          );
+          setLoading(false);
+          return;
+        }
+
         const signer = getContractSigner();
         await aetherGridService.revealWinner(sessionId, userAddress, signer);
 
@@ -845,6 +1024,8 @@ export function AetherGridGame({
         const updatedGame = await waitForWinner();
         setGameState(updatedGame);
         setGamePhase('complete');
+        const pn = freshGame!.player1 === userAddress ? 1 : 2;
+        clearSessionStorage(sessionId, pn);
 
         const isWinner = updatedGame?.winner === userAddress;
         setSuccess(isWinner ? '🎉 You won!' : 'Game complete! Winner revealed.');
@@ -856,7 +1037,67 @@ export function AetherGridGame({
         // User can click "Start New Game" when ready
       } catch (err) {
         console.error('Reveal winner error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to reveal winner');
+        const msg = err instanceof Error ? err.message : String(err);
+        const isBothNotGuessed =
+          msg.includes('BothPlayersNotGuessed') || msg.includes('Contract, #4') || msg.includes('Error(Contract, #4)');
+        if (isBothNotGuessed) {
+          setError(
+            'Ambos jugadores deben enviar su energía primero. Asegúrate de que el otro jugador haya terminado y enviado.'
+          );
+          setLoading(false);
+          return;
+        }
+
+        const isTimeout =
+          msg.includes('Waited ') && (msg.includes('did not') || msg.includes('Returning anyway'));
+        const hashMatch = msg.match(/"hash"\s*:\s*"([a-f0-9]{64})"/i) ?? msg.match(/hash["\s:]+["']?([a-f0-9]{64})/i);
+        const txHash = hashMatch?.[1];
+
+        if (isTimeout || txHash) {
+          setError(null);
+          setSuccess('Transacción enviada. Comprobando estado del juego en la red…');
+          const POLL_INTERVAL_MS = 2500;
+          const POLL_MAX_MS = 90000;
+          const start = Date.now();
+          if (revealPollIntervalRef.current) clearInterval(revealPollIntervalRef.current);
+          const pollId = setInterval(async () => {
+            if (Date.now() - start > POLL_MAX_MS) {
+              clearInterval(pollId);
+              revealPollIntervalRef.current = null;
+              setLoading(false);
+              setSuccess(null);
+              setError(
+                txHash
+                  ? `La confirmación tardó más de lo esperado. Comprueba el estado en el explorador (hash: ${txHash.slice(0, 8)}…). Puedes volver a pulsar "Revelar ganador" si la tx ya se aplicó.`
+                  : 'La confirmación tardó más de lo esperado. Comprueba si el juego ya terminó o vuelve a intentar "Revelar ganador".'
+              );
+              return;
+            }
+            try {
+              const game = await aetherGridService.getGame(sessionId);
+              if (game?.winner != null && game?.winner !== undefined) {
+                clearInterval(pollId);
+                revealPollIntervalRef.current = null;
+                setGameState(game);
+                setGamePhase('complete');
+                const pn = game.player1 === userAddress ? 1 : 2;
+                clearSessionStorage(sessionId, pn);
+                const isWinner = game.winner === userAddress;
+                setSuccess(isWinner ? '🎉 ¡Ganaste!' : 'Juego completado. Ganador revelado.');
+                setLoading(false);
+                onStandingsRefresh();
+              }
+            } catch (_) {
+              // sigue intentando
+            }
+          }, POLL_INTERVAL_MS);
+          revealPollIntervalRef.current = pollId;
+          setLoading(false);
+          return;
+        }
+
+        setError(msg);
+        setLoading(false);
       } finally {
         setLoading(false);
       }
@@ -885,10 +1126,10 @@ export function AetherGridGame({
       <div className="flex items-center mb-6">
         <div>
           <h2 className="text-3xl font-black bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent">
-            Aether Grid Game 🎲
+            Aether Grid
           </h2>
           <p className="text-sm text-gray-700 font-semibold mt-1">
-            Guess a number 1-10. Closest guess wins!
+            Encuentra el objeto en el tablero. Gana quien menos energía gaste.
           </p>
           <p className="text-xs text-gray-500 font-mono mt-1">
             Session ID: {sessionId}
@@ -1235,47 +1476,47 @@ export function AetherGridGame({
         </div>
       )}
 
-      {/* GUESS PHASE */}
+      {/* GUESS PHASE: tablero 3D para encontrar el objeto; al terminar se envía la energía on-chain */}
       {gamePhase === 'guess' && gameState && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className={`p-5 rounded-xl border-2 ${isPlayer1 ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg' : 'border-gray-200 bg-white'}`}>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Player 1</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 1</div>
               <div className="font-mono text-sm font-semibold mb-2 text-gray-800">
                 {gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}
               </div>
               <div className="text-xs font-semibold text-gray-600">
-                Points: {(Number(gameState.player1_points) / 10000000).toFixed(2)}
+                Puntos: {(Number(gameState.player1_points) / 10000000).toFixed(2)}
               </div>
               <div className="mt-3">
                 {gameState.player1_guess !== null && gameState.player1_guess !== undefined ? (
                   <div className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs font-bold shadow-md">
-                    ✓ Guessed
+                    ✓ Enviado
                   </div>
                 ) : (
                   <div className="inline-block px-3 py-1 rounded-full bg-gray-200 text-gray-600 text-xs font-bold">
-                    Waiting...
+                    Esperando...
                   </div>
                 )}
               </div>
             </div>
 
             <div className={`p-5 rounded-xl border-2 ${isPlayer2 ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg' : 'border-gray-200 bg-white'}`}>
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Player 2</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 2</div>
               <div className="font-mono text-sm font-semibold mb-2 text-gray-800">
                 {gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}
               </div>
               <div className="text-xs font-semibold text-gray-600">
-                Points: {(Number(gameState.player2_points) / 10000000).toFixed(2)}
+                Puntos: {(Number(gameState.player2_points) / 10000000).toFixed(2)}
               </div>
               <div className="mt-3">
                 {gameState.player2_guess !== null && gameState.player2_guess !== undefined ? (
                   <div className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs font-bold shadow-md">
-                    ✓ Guessed
+                    ✓ Enviado
                   </div>
                 ) : (
                   <div className="inline-block px-3 py-1 rounded-full bg-gray-200 text-gray-600 text-xs font-bold">
-                    Waiting...
+                    Esperando...
                   </div>
                 )}
               </div>
@@ -1283,39 +1524,38 @@ export function AetherGridGame({
           </div>
 
           {(isPlayer1 || isPlayer2) && !hasGuessed && (
-            <div className="space-y-4">
-              <label className="block text-sm font-bold text-gray-700">
-                Make Your Guess (1-10)
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+            <div className="space-y-3">
+              <p className="text-sm font-bold text-gray-700">
+                Encuentra el objeto en el tablero. Gana quien menos energía gaste.
+              </p>
+              {boardPhase === 'FINISHED' && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-amber-800">Encontraste el objeto. Envía tu energía al contrato:</span>
                   <button
-                    key={num}
-                    onClick={() => setGuess(num)}
-                    className={`p-4 rounded-xl border-2 font-black text-xl transition-all ${
-                      guess === num
-                        ? 'border-purple-500 bg-gradient-to-br from-purple-500 to-pink-500 text-white scale-110 shadow-2xl'
-                        : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-lg hover:scale-105'
-                    }`}
+                    type="button"
+                    onClick={() => handleBoardFinish(boardEnergy)}
+                    disabled={loading}
+                    className="px-4 py-2 rounded-lg font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
                   >
-                    {num}
+                    {loading ? 'Enviando...' : 'Enviar energía'}
                   </button>
-                ))}
+                </div>
+              )}
+              {loading && boardPhase !== 'FINISHED' && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-medium">
+                  Enviando energía...
+                </div>
+              )}
+              <div className="rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-900" style={{ minHeight: '420px' }}>
+                <AetherGame onFinish={handleBoardFinish} skipNextFinishRef={skipNextFinishRef} />
               </div>
-              <button
-                onClick={handleMakeGuess}
-                disabled={isBusy || guess === null}
-                className="w-full mt-2.5 py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 disabled:transform-none"
-              >
-                {loading ? 'Submitting...' : 'Submit Guess'}
-              </button>
             </div>
           )}
 
           {hasGuessed && (
             <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl">
               <p className="text-sm font-semibold text-blue-700">
-                ✓ You've made your guess. Waiting for other player...
+                ✓ Ya enviaste tu energía. Esperando al otro jugador...
               </p>
             </div>
           )}
@@ -1328,17 +1568,17 @@ export function AetherGridGame({
           <div className="p-8 bg-gradient-to-br from-yellow-50 via-orange-50 to-amber-50 border-2 border-yellow-300 rounded-2xl text-center shadow-xl">
             <div className="text-6xl mb-4">🎊</div>
             <h3 className="text-2xl font-black text-gray-900 mb-3">
-              Both Players Have Guessed!
+              ¡Ambos jugadores han terminado!
             </h3>
             <p className="text-sm font-semibold text-gray-700 mb-6">
-              Click below to reveal the winner
+              Haz clic para revelar al ganador (quien menos energía gastó)
             </p>
             <button
               onClick={handleRevealWinner}
               disabled={isBusy}
               className="px-10 py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-yellow-500 via-orange-500 to-amber-500 hover:from-yellow-600 hover:via-orange-600 hover:to-amber-600 disabled:from-gray-200 disabled:to-gray-300 disabled:text-gray-500 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105 disabled:transform-none"
             >
-              {loading ? 'Revealing...' : 'Reveal Winner'}
+              {loading ? 'Revelando...' : 'Revelar ganador'}
             </button>
           </div>
         </div>
@@ -1350,43 +1590,43 @@ export function AetherGridGame({
           <div className="p-10 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-300 rounded-2xl text-center shadow-2xl">
             <div className="text-7xl mb-6">🏆</div>
             <h3 className="text-3xl font-black text-gray-900 mb-4">
-              Game Complete!
+              ¡Juego completado!
             </h3>
-            <div className="text-2xl font-black text-green-700 mb-6">
-              Winning Number: {gameState.winning_number}
-            </div>
+            <p className="text-sm font-semibold text-gray-700 mb-6">
+              Gana quien menos energía gastó
+            </p>
             <div className="space-y-3 mb-6">
               <div className="p-4 bg-white/70 border border-green-200 rounded-xl">
-                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Player 1</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 1</p>
                 <p className="font-mono text-xs text-gray-700 mb-2">
                   {gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}
                 </p>
                 <p className="text-sm font-semibold text-gray-800">
-                  Guess: {gameState.player1_guess ?? '—'}
-                  {player1Distance !== null ? ` (distance ${player1Distance})` : ''}
+                  Energía: {gameState.player1_guess ?? '—'}
+                  {player1Distance !== null ? ` (distancia ${player1Distance})` : ''}
                 </p>
               </div>
 
               <div className="p-4 bg-white/70 border border-green-200 rounded-xl">
-                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Player 2</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-1">Jugador 2</p>
                 <p className="font-mono text-xs text-gray-700 mb-2">
                   {gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}
                 </p>
                 <p className="text-sm font-semibold text-gray-800">
-                  Guess: {gameState.player2_guess ?? '—'}
-                  {player2Distance !== null ? ` (distance ${player2Distance})` : ''}
+                  Energía: {gameState.player2_guess ?? '—'}
+                  {player2Distance !== null ? ` (distancia ${player2Distance})` : ''}
                 </p>
               </div>
             </div>
             {gameState.winner && (
               <div className="mt-6 p-5 bg-white border-2 border-green-200 rounded-xl shadow-lg">
-                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-2">Winner</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-2">Ganador</p>
                 <p className="font-mono text-sm font-bold text-gray-800">
                   {gameState.winner.slice(0, 8)}...{gameState.winner.slice(-4)}
                 </p>
                 {gameState.winner === userAddress && (
                   <p className="mt-3 text-green-700 font-black text-lg">
-                    🎉 You won!
+                    🎉 ¡Ganaste!
                   </p>
                 )}
               </div>
@@ -1396,7 +1636,7 @@ export function AetherGridGame({
             onClick={handleStartNewGame}
             className="w-full py-4 rounded-xl font-bold text-gray-700 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
           >
-            Start New Game
+            Nueva partida
           </button>
         </div>
       )}

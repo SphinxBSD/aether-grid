@@ -95,10 +95,18 @@ interface AetherGameState {
 
   /** Historial de acciones para la consola (movimientos, radar, escáner, perforar) */
   actionLog: string[];
+
+  /** Modo partida: sesión y jugador actual (1 o 2). Define el mapa/objeto de este jugador. */
+  matchSessionId: number | null;
+  matchPlayerNumber: 1 | 2 | null;
 }
 
 interface AetherGameActions {
   startGame: () => void;
+  /** Inicializa modo partida: mismo tesoro para ambos; color de avatar por playerNumber. */
+  initMatchGame: (sessionId: number, playerNumber: 1 | 2) => void;
+  /** Restaura estado desde snapshot (caché en memoria). */
+  restoreState: (snapshot: SerializedSessionState) => void;
   selectSpawn: (x: number, y: number) => void;
   setTargetAndMove: (x: number, y: number) => void;
   tickMovement: (deltaMs: number) => void;
@@ -144,17 +152,121 @@ const initialState: AetherGameState = {
   lastMessage: '',
   lastMessageAt: 0,
   actionLog: [],
+  matchSessionId: null,
+  matchPlayerNumber: null,
 };
+
+const GRID_SIZE = 7;
 
 function pushLog(log: string[], entry: string): string[] {
   return [...log.slice(-(ACTION_LOG_MAX - 1)), entry];
 }
 
 function pickRandomTileExcluding(exclude: TileCoord): TileCoord {
-  const x = Math.floor(Math.random() * 7);
-  const y = Math.floor(Math.random() * 7);
+  const x = Math.floor(Math.random() * GRID_SIZE);
+  const y = Math.floor(Math.random() * GRID_SIZE);
   if (x === exclude.x && y === exclude.y) return pickRandomTileExcluding(exclude);
   return { x, y };
+}
+
+/** Una sola posición de tesoro por sesión: misma coordenada para ambos jugadores (quien lo encuentre primero gana). */
+export function getHiddenObjectTileForSession(sessionId: number): TileCoord {
+  const s = sessionId >>> 0;
+  const h = Math.imul(s, 2654435761) >>> 0;
+  return { x: h % GRID_SIZE, y: (h >>> 8) % GRID_SIZE };
+}
+
+/** Snapshot serializable para guardar en caché (sin efectos transitorios ni Sets). */
+export interface SerializedSessionState {
+  phase: GamePhase;
+  playerTile: TileCoord | null;
+  playerWorldPos: WorldPos;
+  targetTile: TileCoord | null;
+  pathQueue: TileCoord[];
+  drilledTiles: string[];
+  energy: number;
+  radarUses: number;
+  scanUses: number;
+  impulseUses: number;
+  actionLog: string[];
+  matchSessionId: number | null;
+  matchPlayerNumber: 1 | 2 | null;
+  hiddenObjectTile: TileCoord | null;
+}
+
+const sessionStateCache = new Map<string, SerializedSessionState>();
+
+const SESSION_STORAGE_KEY_PREFIX = 'aether-grid-session-';
+
+function getCacheKey(sessionId: number, playerNumber: 1 | 2): string {
+  return `${sessionId}-${playerNumber}`;
+}
+
+function getLocalStorageKey(sessionId: number, playerNumber: 1 | 2): string {
+  return SESSION_STORAGE_KEY_PREFIX + getCacheKey(sessionId, playerNumber);
+}
+
+function serializeState(s: AetherGameState): SerializedSessionState {
+  return {
+    phase: s.phase,
+    playerTile: s.playerTile,
+    playerWorldPos: s.playerWorldPos,
+    targetTile: s.targetTile,
+    pathQueue: s.pathQueue,
+    drilledTiles: [...s.drilledTiles],
+    energy: s.energy,
+    radarUses: s.radarUses,
+    scanUses: s.scanUses,
+    impulseUses: s.impulseUses,
+    actionLog: s.actionLog,
+    matchSessionId: s.matchSessionId,
+    matchPlayerNumber: s.matchPlayerNumber,
+    hiddenObjectTile: s.hiddenObjectTile,
+  };
+}
+
+/** Guarda el estado actual en memoria y en localStorage para que funcione entre pestañas y recargas. */
+export function persistSessionState(): void {
+  const s = useAetherGameStore.getState();
+  if (s.matchSessionId == null || s.matchPlayerNumber == null) return;
+  const key = getCacheKey(s.matchSessionId, s.matchPlayerNumber);
+  const snapshot = serializeState(s);
+  sessionStateCache.set(key, snapshot);
+  try {
+    localStorage.setItem(getLocalStorageKey(s.matchSessionId, s.matchPlayerNumber), JSON.stringify(snapshot));
+  } catch (e) {
+    console.warn('[aether-grid] persistSessionState localStorage failed', e);
+  }
+}
+
+/** Devuelve estado guardado para esta sesión y jugador: primero memoria, luego localStorage (misma sesión en otra pestaña/recarga). */
+export function restoreSessionState(
+  sessionId: number,
+  playerNumber: 1 | 2
+): SerializedSessionState | null {
+  const key = getCacheKey(sessionId, playerNumber);
+  const fromMemory = sessionStateCache.get(key);
+  if (fromMemory) return fromMemory;
+  try {
+    const raw = localStorage.getItem(getLocalStorageKey(sessionId, playerNumber));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SerializedSessionState;
+    sessionStateCache.set(key, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Quita de memoria y localStorage el estado de esta sesión/jugador (llamar al completar la partida). */
+export function clearSessionStorage(sessionId: number, playerNumber: 1 | 2): void {
+  const key = getCacheKey(sessionId, playerNumber);
+  sessionStateCache.delete(key);
+  try {
+    localStorage.removeItem(getLocalStorageKey(sessionId, playerNumber));
+  } catch {
+    // ignore
+  }
 }
 
 export const useAetherGameStore = create<AetherGameState & AetherGameActions>((set, get) => ({
@@ -162,24 +274,64 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
 
   startGame: () => set({ phase: 'SPAWN_SELECT' }),
 
+  initMatchGame: (sessionId: number, playerNumber: 1 | 2) => {
+    const hiddenObjectTile = getHiddenObjectTileForSession(sessionId);
+    set({
+      matchSessionId: sessionId,
+      matchPlayerNumber: playerNumber,
+      hiddenObjectTile,
+    });
+  },
+
+  restoreState: (snapshot: SerializedSessionState) => {
+    const sessionId = snapshot.matchSessionId;
+    const hiddenObjectTile =
+      sessionId != null ? getHiddenObjectTileForSession(sessionId) : snapshot.hiddenObjectTile;
+    set({
+      phase: snapshot.phase,
+      playerTile: snapshot.playerTile,
+      playerWorldPos: snapshot.playerWorldPos,
+      targetTile: snapshot.targetTile,
+      pathQueue: snapshot.pathQueue,
+      drilledTiles: new Set(snapshot.drilledTiles),
+      energy: snapshot.energy,
+      radarUses: snapshot.radarUses,
+      scanUses: snapshot.scanUses,
+      impulseUses: snapshot.impulseUses,
+      actionLog: snapshot.actionLog,
+      matchSessionId: snapshot.matchSessionId,
+      matchPlayerNumber: snapshot.matchPlayerNumber,
+      hiddenObjectTile,
+      radarEffect: null,
+      scanLineEffect: null,
+      drillEffect: null,
+      dashTrailPositions: [],
+      isDrilling: false,
+      impulseBlockDrill: false,
+      isImpulseMove: false,
+    });
+  },
+
   selectSpawn: (x: number, y: number) => {
     const [wx, wy, wz] = tileToWorld(x, y);
     const spawnTile = { x, y };
-    const hiddenObjectTile = pickRandomTileExcluding(spawnTile);
-    set((s) => ({
+    const s = get();
+    const hiddenObjectTile =
+      s.matchSessionId != null ? s.hiddenObjectTile : pickRandomTileExcluding(spawnTile);
+    set((state) => ({
       phase: 'PLAYING',
       playerTile: spawnTile,
       playerWorldPos: { x: wx, y: wy, z: wz },
       pathQueue: [],
       targetTile: null,
-      hiddenObjectTile,
+      hiddenObjectTile: hiddenObjectTile ?? pickRandomTileExcluding(spawnTile),
       energy: 0,
       radarUses: RADAR_MAX,
       scanUses: SCAN_MAX,
       impulseUses: IMPULSE_MAX,
       impulseBlockDrill: false,
       isImpulseMove: false,
-      actionLog: pushLog(s.actionLog, `Spawn en (${x + 1},${y + 1}) → Exitoso`),
+      actionLog: pushLog(state.actionLog, `Spawn en (${x + 1},${y + 1}) → Exitoso`),
     }));
   },
 
@@ -379,5 +531,7 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
       playerWorldPos: initialWorldPos,
       drilledTiles: new Set(),
       actionLog: [],
+      matchSessionId: null,
+      matchPlayerNumber: null,
     }),
 }));

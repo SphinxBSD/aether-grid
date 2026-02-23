@@ -11,7 +11,13 @@ export function PlayerAvatar() {
   const toolRef = useRef<Group>(null);
   const bobPhase = useRef(0);
 
-  const { playerWorldPos, phase, playerTile, isDrilling, drillEffect } = useAetherGameStore();
+  const { playerWorldPos, phase, playerTile, isDrilling, drillEffect, matchPlayerNumber } =
+    useAetherGameStore();
+
+  const playerColor = matchPlayerNumber === 2 ? '#00b4d8' : '#e87500';
+  const playerColorDark = matchPlayerNumber === 2 ? '#0096c7' : '#c96500';
+  const visorColor = matchPlayerNumber === 2 ? '#00d4ff' : '#00d4ff';
+  const visorEmissive = matchPlayerNumber === 2 ? '#00aacc' : '#00aacc';
 
   useFrame((_, delta) => {
     if (playerTile == null || !groupRef.current) return;
@@ -51,22 +57,22 @@ export function PlayerAvatar() {
 
   return (
     <group ref={groupRef}>
-      {/* Cuerpo */}
+      {/* Cuerpo: naranja Jugador 1, cyan Jugador 2 */}
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.32, 0.4, 0.2]} />
-        <meshStandardMaterial color="#e87500" roughness={0.7} metalness={0} />
+        <meshStandardMaterial color={playerColor} roughness={0.7} metalness={0} />
       </mesh>
       {/* Casco */}
       <mesh position={[0, 0.32, 0]} castShadow>
         <boxGeometry args={[0.28, 0.22, 0.22]} />
-        <meshStandardMaterial color="#c96500" roughness={0.6} metalness={0.05} />
+        <meshStandardMaterial color={playerColorDark} roughness={0.6} metalness={0.05} />
       </mesh>
       {/* Visor */}
       <mesh position={[0, 0.34, 0.12]} castShadow>
         <planeGeometry args={[0.14, 0.1]} />
         <meshStandardMaterial
-          color="#00d4ff"
-          emissive="#00aacc"
+          color={visorColor}
+          emissive={visorEmissive}
           emissiveIntensity={0.6}
           roughness={0.3}
         />
