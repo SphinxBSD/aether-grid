@@ -183,7 +183,7 @@ export function AetherGridGame({
       if (game && game.winner !== null && game.winner !== undefined) {
         setGamePhase('complete');
       } else if (game && game.player1_guess !== null && game.player1_guess !== undefined &&
-                 game.player2_guess !== null && game.player2_guess !== undefined) {
+        game.player2_guess !== null && game.player2_guess !== undefined) {
         setGamePhase('reveal');
       } else {
         setGamePhase('guess');
@@ -525,7 +525,7 @@ export function AetherGridGame({
 
         console.log('Transaction prepared successfully! Player 1 has signed their auth entry.');
         setExportedAuthEntryXDR(authEntryXDR);
-        setSuccess('Firma lista. Copia el XDR o la URL y envíala al Jugador 2. Esperando a que el otro jugador empiece...');
+        setSuccess('Signature ready. Copy the XDR or URL and send it to Player 2. Waiting for the other player to start...');
 
         // Start polling for the game to be created by Player 2
         const pollInterval = setInterval(async () => {
@@ -842,7 +842,7 @@ export function AetherGridGame({
           const isWinner = game.winner === userAddress;
           setSuccess(isWinner ? '🎉 You won this game!' : 'Game complete. Winner revealed.');
         } else if (game.player1_guess !== null && game.player1_guess !== undefined &&
-            game.player2_guess !== null && game.player2_guess !== undefined) {
+          game.player2_guess !== null && game.player2_guess !== undefined) {
           // Both players guessed, waiting for reveal
           setGamePhase('reveal');
           setSuccess('Game loaded! Both players have guessed. You can reveal the winner.');
@@ -949,7 +949,7 @@ export function AetherGridGame({
         const store = useAetherGameStore.getState();
         const currentPlayerNum = gameState?.player1 === userAddress ? 1 : gameState?.player2 === userAddress ? 2 : null;
         if (currentPlayerNum == null || store.matchPlayerNumber !== currentPlayerNum) {
-          setError('El tablero no corresponde a tu jugador. Refresca o cambia de wallet.');
+          setError('This board does not match your player. Refresh or switch wallet.');
           setLoading(false);
           return;
         }
@@ -979,8 +979,8 @@ export function AetherGridGame({
         const isAlreadyGuessed = msg.includes('AlreadyGuessed') || msg.includes('Contract, #3');
         setError(
           isAlreadyGuessed
-            ? 'Ya habías enviado tu energía. Si ves "Esperando...", refresca o espera a que el otro jugador termine.'
-            : msg || 'Error al enviar energía'
+            ? 'You had already submitted your energy. If you see "Waiting...", refresh or wait for the other player to finish.'
+            : msg || 'Error sending energy'
         );
       } finally {
         setLoading(false);
@@ -1016,7 +1016,7 @@ export function AetherGridGame({
           freshGame.player2_guess !== undefined;
         if (!bothGuessed) {
           setError(
-            'Ambos jugadores deben enviar su energía primero. Asegúrate de que el otro jugador haya terminado y enviado.'
+            'Both players must submit their energy first. Make sure the other player has finished and submitted.'
           );
           setLoading(false);
           return;
@@ -1047,7 +1047,7 @@ export function AetherGridGame({
           msg.includes('BothPlayersNotGuessed') || msg.includes('Contract, #4') || msg.includes('Error(Contract, #4)');
         if (isBothNotGuessed) {
           setError(
-            'Ambos jugadores deben enviar su energía primero. Asegúrate de que el otro jugador haya terminado y enviado.'
+            'Both players must submit their energy first. Make sure the other player has finished and submitted.'
           );
           setLoading(false);
           return;
@@ -1060,7 +1060,7 @@ export function AetherGridGame({
 
         if (isTimeout || txHash) {
           setError(null);
-          setSuccess('Transacción enviada. Comprobando estado del juego en la red…');
+          setSuccess('Transaction sent. Checking game state on the network…');
           const POLL_INTERVAL_MS = 2500;
           const POLL_MAX_MS = 90000;
           const start = Date.now();
@@ -1073,8 +1073,8 @@ export function AetherGridGame({
               setSuccess(null);
               setError(
                 txHash
-                  ? `La confirmación tardó más de lo esperado. Comprueba el estado en el explorador (hash: ${txHash.slice(0, 8)}…). Puedes volver a pulsar "Revelar ganador" si la tx ya se aplicó.`
-                  : 'La confirmación tardó más de lo esperado. Comprueba si el juego ya terminó o vuelve a intentar "Revelar ganador".'
+                  ? `Confirmation took longer than expected. Check status in the explorer (hash: ${txHash.slice(0, 8)}…). You can press "Reveal winner" again if the tx already applied.`
+                  : 'Confirmation took longer than expected. Check if the game has ended or try "Reveal winner" again.'
               );
               return;
             }
@@ -1088,7 +1088,7 @@ export function AetherGridGame({
                 const pn = game.player1 === userAddress ? 1 : 2;
                 clearSessionStorage(sessionId, pn);
                 const isWinner = game.winner === userAddress;
-                setSuccess(isWinner ? '🎉 ¡Ganaste!' : 'Juego completado. Ganador revelado.');
+                setSuccess(isWinner ? '🎉 You won!' : 'Game complete. Winner revealed.');
                 setLoading(false);
                 onStandingsRefresh();
               }
@@ -1112,7 +1112,7 @@ export function AetherGridGame({
   const isPlayer1 = gameState && gameState.player1 === userAddress;
   const isPlayer2 = gameState && gameState.player2 === userAddress;
   const hasGuessed = isPlayer1 ? gameState?.player1_guess !== null && gameState?.player1_guess !== undefined :
-                     isPlayer2 ? gameState?.player2_guess !== null && gameState?.player2_guess !== undefined : false;
+    isPlayer2 ? gameState?.player2_guess !== null && gameState?.player2_guess !== undefined : false;
 
   const setGameRole = useGameRoleStore((s) => s.setGameRole);
   const setSendStatusText = useGameRoleStore((s) => s.setSendStatusText);
@@ -1123,10 +1123,10 @@ export function AetherGridGame({
         gameState.player1_guess != null && gameState.player2_guess != null
           ? 'Ambos enviaron.'
           : gameState.player1_guess != null
-            ? `Jugador 1 envió${isPlayer1 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Esperando a Jugador 2...`
-            : gameState.player2_guess != null
-              ? `Jugador 2 envió${isPlayer2 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Esperando a Jugador 1...`
-              : 'Esperando envíos.';
+            ? `Player 1 sent${isPlayer1 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Waiting for Player 2...`
+                    : gameState.player2_guess != null
+                      ? `Player 2 sent${isPlayer2 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Waiting for Player 1...`
+                      : 'Waiting for submissions.';
       setSendStatusText(sendText);
     } else {
       setGameRole(null);
@@ -1146,6 +1146,9 @@ export function AetherGridGame({
       ? Math.abs(Number(player2Guess) - Number(winningNumber))
       : null;
 
+  const showPlayer1Card = isPlayer1 && !hasGuessed;
+  const showPlayer2Card = isPlayer2 && !hasGuessed;
+
   // Layout tipo combate: mapa a pantalla completa, fondo background.png visible, título centrado, UI estilo máquina izquierda/derecha
   if (gamePhase === 'guess' && gameState) {
     return (
@@ -1158,11 +1161,11 @@ export function AetherGridGame({
             Encuentra el objeto en el tablero. Gana quien menos energía gaste.
           </span>
         </h2> */}
-        <div className="aether-grid-combat__ui aether-grid-combat__ui--left" aria-label="Jugador 1">
+        <div className="aether-grid-combat__ui aether-grid-combat__ui--left" aria-label="Player 1">
           <div className="aether-grid-combat-card aether-grid-combat-card--player1">
-            <div className="aether-grid-combat-card__header">JUGADOR 1</div>
+            <div className="aether-grid-combat-card__header">PLAYER 1</div>
             {/* <div className="aether-grid-combat-card__section">
-              <div className="aether-grid-combat-card__label">Sesión</div>
+              <div className="aether-grid-combat-card__label">Session</div>
               <div className="aether-grid-combat-card__value aether-grid-combat-card__value--cyan">{sessionId}</div>
             </div> */}
             {error && (
@@ -1175,18 +1178,18 @@ export function AetherGridGame({
               <div className="aether-grid-combat-card__value">{gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}</div>
             </div>
             <div className="aether-grid-combat-card__section">
-              <div className="aether-grid-combat-card__label">Puntos</div>
+              <div className="aether-grid-combat-card__label">Points</div>
               <div className="aether-grid-combat-card__value">{(Number(gameState.player1_points) / 10000000).toFixed(2)}</div>
             </div>
             <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Estado</div>
               {gameState.player1_guess != null ? (
-                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Enviado</span>
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Sent</span>
               ) : (
-                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Esperando...</span>
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Waiting...</span>
               )}
             </div>
-            {isPlayer1 && !hasGuessed && (
+            {showPlayer1Card && (
               <div className="aether-grid-combat-card__section">
                 {boardPhase === 'FINISHED' && (
                   <button
@@ -1195,36 +1198,36 @@ export function AetherGridGame({
                     disabled={loading}
                     className="aether-grid-combat-btn"
                   >
-                    {loading ? 'Enviando...' : 'Enviar energía'}
+                    {loading ? 'Sending...' : 'Send energy'}
                   </button>
                 )}
                 {loading && boardPhase !== 'FINISHED' && (
-                  <p className="aether-grid-combat-msg">Enviando energía...</p>
+                  <p className="aether-grid-combat-msg">Sending energy...</p>
                 )}
               </div>
             )}
           </div>
         </div>
-        <div className="aether-grid-combat__ui aether-grid-combat__ui--right" aria-label="Jugador 2 y estado">
+        <div className="aether-grid-combat__ui aether-grid-combat__ui--right" aria-label="Player 2 and status">
           <div className="aether-grid-combat-card aether-grid-combat-card--player2">
-            <div className="aether-grid-combat-card__header">JUGADOR 2</div>
+            <div className="aether-grid-combat-card__header">PLAYER 2</div>
             <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Wallet</div>
               <div className="aether-grid-combat-card__value">{gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}</div>
             </div>
             <div className="aether-grid-combat-card__section">
-              <div className="aether-grid-combat-card__label">Puntos</div>
+              <div className="aether-grid-combat-card__label">Points</div>
               <div className="aether-grid-combat-card__value">{(Number(gameState.player2_points) / 10000000).toFixed(2)}</div>
             </div>
             <div className="aether-grid-combat-card__section">
-              <div className="aether-grid-combat-card__label">Estado</div>
+              <div className="aether-grid-combat-card__label">Status</div>
               {gameState.player2_guess != null ? (
-                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Enviado</span>
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Sent</span>
               ) : (
-                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Esperando...</span>
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Waiting...</span>
               )}
             </div>
-            {isPlayer2 && !hasGuessed && (
+            {showPlayer2Card && (
               <div className="aether-grid-combat-card__section">
                 {boardPhase === 'FINISHED' && (
                   <button
@@ -1233,11 +1236,11 @@ export function AetherGridGame({
                     disabled={loading}
                     className="aether-grid-combat-btn"
                   >
-                    {loading ? 'Enviando...' : 'Enviar energía'}
+                    {loading ? 'Sending...' : 'Send energy'}
                   </button>
                 )}
                 {loading && boardPhase !== 'FINISHED' && (
-                  <p className="aether-grid-combat-msg">Enviando energía...</p>
+                  <p className="aether-grid-combat-msg">Sending energy...</p>
                 )}
               </div>
             )}
@@ -1325,79 +1328,79 @@ export function AetherGridGame({
 
           {createMode === 'create' ? (
             <div className="aether-create-form">
-          <div className="aether-create-form__fields">
-            <div className="aether-create-field">
-              <label className="aether-create-label">Your Address (Player 1)</label>
-              <input
-                type="text"
-                value={player1Address}
-                onChange={(e) => setPlayer1Address(e.target.value.trim())}
-                placeholder="G..."
-                className="aether-create-input"
-              />
-              <p className="aether-create-hint">
-                Pre-filled from your connected wallet. If you change it, you must be able to sign as that address.
-              </p>
-            </div>
-
-            <div className="aether-create-field">
-              <label className="aether-create-label">Your Points</label>
-              <input
-                type="text"
-                value={player1Points}
-                onChange={(e) => setPlayer1Points(e.target.value)}
-                placeholder="0.1"
-                className="aether-create-input"
-              />
-              <p className="aether-create-hint">
-                Available: {(Number(availablePoints) / 10000000).toFixed(2)} Points
-              </p>
-            </div>
-
-            <div className="aether-create-info">
-              <p>ℹ️ Player 2 will specify their own address and points when they import your auth entry. You only need to prepare and export your signature.</p>
-            </div>
-          </div>
-
-          <div className="aether-create-form__actions">
-            <p className="aether-create-session">Session ID: {sessionId}</p>
-
-            {!exportedAuthEntryXDR ? (
-              <button
-                onClick={handlePrepareTransaction}
-                disabled={isBusy}
-                className="aether-create-btn aether-create-btn--primary"
-              >
-                {loading ? 'Preparing...' : 'Prepare & Export Auth Entry'}
-              </button>
-            ) : (
-              <div className="aether-create-export">
-                <div className="aether-create-export__box">
-                  <p className="aether-create-export__title">Auth Entry XDR (Player 1 Signed)</p>
-                  <div className="aether-create-export__code">
-                    <code>{exportedAuthEntryXDR}</code>
-                  </div>
-                  <div className="aether-create-export__btns">
-                    <button
-                      onClick={copyAuthEntryToClipboard}
-                      className="aether-create-btn aether-create-btn--secondary"
-                    >
-                      {authEntryCopied ? '✓ Copied!' : '📋 Copy Auth Entry'}
-                    </button>
-                    <button
-                      onClick={copyShareGameUrlWithAuthEntry}
-                      className="aether-create-btn aether-create-btn--secondary"
-                    >
-                      {shareUrlCopied ? '✓ Copied!' : '🔗 Share URL'}
-                    </button>
-                  </div>
+              <div className="aether-create-form__fields">
+                <div className="aether-create-field">
+                  <label className="aether-create-label">Your Address (Player 1)</label>
+                  <input
+                    type="text"
+                    value={player1Address}
+                    onChange={(e) => setPlayer1Address(e.target.value.trim())}
+                    placeholder="G..."
+                    className="aether-create-input"
+                  />
+                  <p className="aether-create-hint">
+                    Pre-filled from your connected wallet. If you change it, you must be able to sign as that address.
+                  </p>
                 </div>
-                <p className="aether-create-export__hint">
-                  Copy the auth entry XDR or share URL with Player 2 to complete the transaction
-                </p>
+
+                <div className="aether-create-field">
+                  <label className="aether-create-label">Your Points</label>
+                  <input
+                    type="text"
+                    value={player1Points}
+                    onChange={(e) => setPlayer1Points(e.target.value)}
+                    placeholder="0.1"
+                    className="aether-create-input"
+                  />
+                  <p className="aether-create-hint">
+                    Available: {(Number(availablePoints) / 10000000).toFixed(2)} Points
+                  </p>
+                </div>
+
+                <div className="aether-create-info">
+                  <p>ℹ️ Player 2 will specify their own address and points when they import your auth entry. You only need to prepare and export your signature.</p>
+                </div>
               </div>
-            )}
-          </div>
+
+              <div className="aether-create-form__actions">
+                <p className="aether-create-session">Session ID: {sessionId}</p>
+
+                {!exportedAuthEntryXDR ? (
+                  <button
+                    onClick={handlePrepareTransaction}
+                    disabled={isBusy}
+                    className="aether-create-btn aether-create-btn--primary"
+                  >
+                    {loading ? 'Preparing...' : 'Prepare & Export Auth Entry'}
+                  </button>
+                ) : (
+                  <div className="aether-create-export">
+                    <div className="aether-create-export__box">
+                      <p className="aether-create-export__title">Auth Entry XDR (Player 1 Signed)</p>
+                      <div className="aether-create-export__code">
+                        <code>{exportedAuthEntryXDR}</code>
+                      </div>
+                      <div className="aether-create-export__btns">
+                        <button
+                          onClick={copyAuthEntryToClipboard}
+                          className="aether-create-btn aether-create-btn--secondary"
+                        >
+                          {authEntryCopied ? '✓ Copied!' : '📋 Copy Auth Entry'}
+                        </button>
+                        <button
+                          onClick={copyShareGameUrlWithAuthEntry}
+                          className="aether-create-btn aether-create-btn--secondary"
+                        >
+                          {shareUrlCopied ? '✓ Copied!' : '🔗 Share URL'}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="aether-create-export__hint">
+                      Copy the auth entry XDR or share URL with Player 2 to complete the transaction
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           ) : createMode === 'import' ? (
             /* IMPORT MODE */
@@ -1522,14 +1525,14 @@ export function AetherGridGame({
         <div className="aether-create-form">
           <div className="aether-reveal-box">
             <div className="aether-reveal-box__icon">🎊</div>
-            <h3 className="aether-reveal-box__title">¡Ambos jugadores han terminado!</h3>
-            <p className="aether-reveal-box__desc">Haz clic para revelar al ganador (quien menos energía gastó)</p>
+            <h3 className="aether-reveal-box__title">Both players have finished!</h3>
+            <p className="aether-reveal-box__desc">Click to reveal the winner (whoever used less energy)</p>
             <button
               onClick={handleRevealWinner}
               disabled={isBusy}
               className="aether-create-btn aether-create-btn--primary"
             >
-              {loading ? 'Revelando...' : 'Revelar ganador'}
+              {loading ? 'Revealing...' : 'Reveal winner'}
             </button>
           </div>
         </div>
@@ -1540,27 +1543,27 @@ export function AetherGridGame({
         <div className="aether-create-form">
           <div className="aether-reveal-box">
             <div className="aether-reveal-box__icon">🏆</div>
-            <h3 className="aether-reveal-box__title">¡Juego completado!</h3>
-            <p className="aether-reveal-box__desc">Gana quien menos energía gastó</p>
+            <h3 className="aether-reveal-box__title">Game complete!</h3>
+            <p className="aether-reveal-box__desc">Winner is whoever used less energy</p>
             <div className="aether-create-export__box" style={{ textAlign: 'left', marginTop: '1rem', marginBottom: '1rem' }}>
-              <p className="aether-create-export__title">Jugador 1</p>
+              <p className="aether-create-export__title">Player 1</p>
               <p className="aether-create-hint">{gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}</p>
-              <p className="aether-create-label">Energía: {gameState.player1_guess ?? '—'}{player1Distance !== null ? ` (distancia ${player1Distance})` : ''}</p>
+              <p className="aether-create-label">Energy: {gameState.player1_guess ?? '—'}{player1Distance !== null ? ` (distance ${player1Distance})` : ''}</p>
             </div>
             <div className="aether-create-export__box" style={{ textAlign: 'left', marginBottom: '1rem' }}>
-              <p className="aether-create-export__title">Jugador 2</p>
+              <p className="aether-create-export__title">Player 2</p>
               <p className="aether-create-hint">{gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}</p>
-              <p className="aether-create-label">Energía: {gameState.player2_guess ?? '—'}{player2Distance !== null ? ` (distancia ${player2Distance})` : ''}</p>
+              <p className="aether-create-label">Energy: {gameState.player2_guess ?? '—'}{player2Distance !== null ? ` (distance ${player2Distance})` : ''}</p>
             </div>
             {gameState.winner && (
               <div className="aether-create-export__box" style={{ borderColor: 'rgba(0, 212, 255, 0.5)' }}>
-                <p className="aether-create-export__title">Ganador</p>
+                <p className="aether-create-export__title">Winner</p>
                 <p className="aether-create-label">{gameState.winner.slice(0, 8)}...{gameState.winner.slice(-4)}</p>
-                {gameState.winner === userAddress && <p className="aether-create-message aether-create-message--success" style={{ marginTop: '0.5rem', marginBottom: 0 }}>🎉 ¡Ganaste!</p>}
+                {gameState.winner === userAddress && <p className="aether-create-message aether-create-message--success" style={{ marginTop: '0.5rem', marginBottom: 0 }}>🎉 You won!</p>}
               </div>
             )}
             <button onClick={handleStartNewGame} className="aether-create-btn aether-create-btn--secondary" style={{ marginTop: '1.25rem' }}>
-              Nueva partida
+              New game
             </button>
           </div>
         </div>

@@ -72,7 +72,7 @@ export function WalletSwitcher() {
           <span className="status-indicator"></span>
           <div className="wallet-details">
             <div className="wallet-label wallet-label--full">
-              {inGame ? `JUGADOR ${displayRole}` : `Connected Player ${currentPlayer ?? displayRole}`}
+              {inGame ? `PLAYER ${displayRole}` : `Connected Player ${currentPlayer ?? displayRole}`}
             </div>
             <div className="wallet-label wallet-label--short">
               {inGame ? `J${displayRole}` : `P${currentPlayer ?? displayRole}`}
@@ -88,7 +88,7 @@ export function WalletSwitcher() {
               disabled={isConnecting}
             >
               <span className="switch-button-full">
-                {inGame ? `Cambiar a Jugador ${displayRole === 1 ? 2 : 1}` : `Switch to Player ${currentPlayer === 1 ? 2 : 1}`}
+                {inGame ? `Switch to Player ${displayRole === 1 ? 2 : 1}` : `Switch to Player ${currentPlayer === 1 ? 2 : 1}`}
               </span>
               <span className="switch-button-short">Switch</span>
             </button>

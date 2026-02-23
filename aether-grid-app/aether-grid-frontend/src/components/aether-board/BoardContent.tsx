@@ -51,7 +51,7 @@ export function BoardContent({ map }: BoardContentProps) {
   };
 
   return (
-    <group>
+    <group position={[-2, 0, 0]}>
       <AsteroidBase />
       <BoardTiles
         map={map}

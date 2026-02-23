@@ -39,7 +39,7 @@ export function TileLayer({ tiles, type }: TileLayerProps) {
   if (count === 0) return null;
 
   const isWater = type === 'water';
-  const isTree = type === 'tree';
+  const isMineral = type === 'tree'; // tipo "tree" = recurso mineral/cristal en tema espacial
   const isSand = type === 'sand';
 
   return (
@@ -48,10 +48,10 @@ export function TileLayer({ tiles, type }: TileLayerProps) {
       <meshStandardMaterial
         color="#ffffff"
         vertexColors
-        roughness={isTree ? 0.92 : isWater ? 0.8 : isSand ? 0.95 : 0.88}
-        metalness={0}
-        emissive={isWater ? '#1a3a5c' : '#000000'}
-        emissiveIntensity={isWater ? 0.06 : 0}
+        roughness={isMineral ? 0.75 : isWater ? 0.8 : isSand ? 0.95 : 0.88}
+        metalness={isMineral ? 0.15 : 0}
+        emissive={isWater ? '#1a3a5c' : isMineral ? '#0d1520' : '#000000'}
+        emissiveIntensity={isWater ? 0.06 : isMineral ? 0.03 : 0}
       />
     </instancedMesh>
   );

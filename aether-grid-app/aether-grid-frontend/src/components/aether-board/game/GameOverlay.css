@@ -119,11 +119,17 @@
 
 .aether-console-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid rgba(0, 212, 255, 0.25);
   background: rgba(0, 0, 0, 0.25);
+}
+
+.aether-console-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .aether-console-title {
@@ -140,6 +146,40 @@
   border: 1px solid rgba(0, 212, 255, 0.4);
   color: rgba(0, 212, 255, 0.9);
   letter-spacing: 0.15em;
+}
+
+.aether-console-session-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.aether-console-session-id-label {
+  flex-shrink: 0;
+}
+
+.aether-console-session-id-value {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  color: rgba(0, 212, 255, 0.95);
+  cursor: pointer;
+  user-select: all;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.aether-console-session-id-value:hover {
+  background: rgba(0, 212, 255, 0.18);
+  border-color: rgba(0, 212, 255, 0.5);
+}
+
+.aether-console-session-id-value:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.4);
 }
 
 .aether-console-section {

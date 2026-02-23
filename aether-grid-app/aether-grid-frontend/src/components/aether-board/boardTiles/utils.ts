@@ -10,7 +10,7 @@ export function worldPos(i: number, j: number): [number, number, number] {
   return [x, halfTile, z];
 }
 
-/** Colores vivos tipo "pedazo de tierra": pradera, agua, bosque, arena, roca */
+/** Colores: pradera, agua, mineral/cristal, arena, roca (tema espacial) */
 export function colorFor(type: TileType, variant: number): [number, number, number] {
   switch (type) {
     case 'stone': {
@@ -26,8 +26,12 @@ export function colorFor(type: TileType, variant: number): [number, number, numb
       return [r, g, b];
     }
     case 'tree': {
-      const g = 0.38 + variant * 0.12;
-      return [0.12, g, 0.08];
+      // Carbón / mineral espacial: grises oscuros con toque azul
+      const base = 0.14 + variant * 0.06;
+      const b = 0.22 + variant * 0.08;
+      const g = 0.16 + variant * 0.05;
+      const r = base;
+      return [r, g, b];
     }
     case 'sand': {
       const t = 0.85 + variant * 0.04;

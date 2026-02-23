@@ -2,7 +2,7 @@ import { useWalletStore } from '@/store/walletSlice';
 import { AetherGridGame } from '@/games/aether-grid/AetherGridGame';
 import './MatchPage.css';
 
-/** Puntos por defecto para partidas (100.00 con 7 decimales) si no hay integración con Game Hub */
+/** Default points for matches (100.00 with 7 decimals) when not integrated with Game Hub */
 const DEFAULT_AVAILABLE_POINTS = 100n * 10n ** 7n;
 
 export function MatchPage() {
@@ -11,7 +11,7 @@ export function MatchPage() {
   if (!publicKey) {
     return (
       <div className="match-page">
-        <p className="page-description">Conecta tu wallet para crear o unirte a una partida.</p>
+        <p className="page-description">Connect your wallet to create or join a match.</p>
       </div>
     );
   }

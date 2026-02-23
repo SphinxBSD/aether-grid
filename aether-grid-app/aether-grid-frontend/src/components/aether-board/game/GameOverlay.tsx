@@ -5,18 +5,18 @@ import './GameOverlay.css';
 
 const phaseLabels: Record<GamePhase, string> = {
   IDLE: '',
-  SPAWN_SELECT: 'Elige tu posición inicial',
-  PLAYING: 'Muevete o usa un poder',
-  MOVING: 'Moviendo...',
-  FINISHED: '¡Encontraste el objeto!',
+  SPAWN_SELECT: 'Choose your starting position',
+  PLAYING: 'Move or use a power',
+  MOVING: 'Moving...',
+  FINISHED: 'You found the object!',
 };
 
 const POWER_LABELS: Record<ActivePower, string> = {
-  MOVE: 'Mover',
+  MOVE: 'Move',
   RADAR: 'Radar',
-  SCAN: 'Escáner',
-  IMPULSE: 'Impulso',
-  DRILL: 'Perforar',
+  SCAN: 'Scanner',
+  IMPULSE: 'Impulse',
+  DRILL: 'Drill',
 };
 
 export function GameOverlay() {
@@ -43,6 +43,7 @@ export function GameOverlay() {
     lastMessage,
     lastMessageAt,
     actionLog,
+    matchSessionId,
   } = useAetherGameStore();
 
   const sendStatusText = useGameRoleStore((s) => s.sendStatusText);
@@ -66,8 +67,25 @@ export function GameOverlay() {
       {(phase === 'SPAWN_SELECT' || phase === 'PLAYING' || phase === 'MOVING' || phase === 'FINISHED') && (
         <aside className="aether-console">
           <div className="aether-console-header">
-            <span className="aether-console-title">SISTEMA</span>
-            <span className="aether-console-badge">AETHER</span>
+            <div className="aether-console-header-row">
+              <span className="aether-console-title">SYSTEM</span>
+              <span className="aether-console-badge">AETHER</span>
+            </div>
+            {matchSessionId != null && (
+              <div className="aether-console-session-id">
+                <span className="aether-console-session-id-label">Session ID:</span>
+                <span
+                  className="aether-console-session-id-value"
+                  title="Click to copy"
+                  onClick={() => navigator.clipboard?.writeText(String(matchSessionId))}
+                  onKeyDown={(e) => e.key === 'Enter' && navigator.clipboard?.writeText(String(matchSessionId))}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {matchSessionId}
+                </span>
+              </div>
+            )}
           </div>
           {sendStatusText && (
             <div className="aether-console-section aether-console-section--send-status">
@@ -76,7 +94,7 @@ export function GameOverlay() {
           )}
 
           <div className="aether-console-section">
-            <div className="aether-console-label">Estado</div>
+            <div className="aether-console-label">Status</div>
             <p className="aether-status">
               {phase === 'FINISHED' ? phaseLabels.FINISHED : phaseLabels[phase]}
             </p>
@@ -86,12 +104,12 @@ export function GameOverlay() {
           {(showPowers || phase === 'FINISHED') && (
             <>
               <div className="aether-console-section aether-console-section--energy">
-                <div className="aether-console-label">Energía acumulada</div>
+                <div className="aether-console-label">Energy used</div>
                 <div className="aether-console-value aether-console-value--energy">{energy}</div>
               </div>
 
               <div className={`aether-console-section aether-console-section--tools ${toolsBlocked ? 'aether-console-section--tools-blocked' : ''}`}>
-                <div className="aether-console-label">Herramienta</div>
+                <div className="aether-console-label">Tool</div>
                 <div className="aether-powers">
                   <button
                     type="button"
@@ -107,7 +125,7 @@ export function GameOverlay() {
                     className={`aether-btn aether-btn--drill ${canDrill && !toolsBlocked ? '' : 'aether-btn--disabled'}`}
                     onClick={drillCurrentTile}
                     disabled={!canDrill || toolsBlocked}
-                    title="Perforar en la casilla actual"
+                    title="Drill on current tile"
                   >
                     {POWER_LABELS.DRILL}
                   </button>
@@ -145,13 +163,13 @@ export function GameOverlay() {
                 <div className="aether-console-section aether-console-section--scanner">
                   <div className="aether-scanner-panel">
                     <div className="aether-scanner-mode">
-                      <span className="aether-scanner-mode-label">Modo</span>
+                      <span className="aether-scanner-mode-label">Mode</span>
                       <button
                         type="button"
                         className={`aether-btn aether-btn--scan-mode ${scanMode === 'row' ? 'active' : ''}`}
                         onClick={() => setScanMode('row')}
                       >
-                        Fila
+                        Row
                       </button>
                       <button
                         type="button"
@@ -162,7 +180,7 @@ export function GameOverlay() {
                       </button>
                     </div>
                     <div className="aether-scanner-index">
-                      <span className="aether-scanner-index-label">Índice 1–7</span>
+                      <span className="aether-scanner-index-label">Index 1–7</span>
                       <input
                             type="range"
                             min={0}
@@ -179,14 +197,14 @@ export function GameOverlay() {
                           onClick={executeScan}
                           disabled={scanUses < 1}
                         >
-                          Ejecutar
+                          Execute
                         </button>
                       </div>
                     </div>
                   )}
 
               <div className="aether-console-section aether-console-section--log">
-                <div className="aether-console-label">Historial</div>
+                <div className="aether-console-label">History</div>
                 <div className="aether-console-log" ref={logContainerRef}>
                   {actionLog.length === 0 ? (
                     <div className="aether-console-log-empty">—</div>
