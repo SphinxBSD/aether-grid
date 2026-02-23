@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { Buffer } from 'buffer';
+import { BarretenbergSync, Fr } from '@aztec/bb.js';
 import { AetherGridService } from './aetherGridService';
 import { requestCache, createCacheKey } from '@/utils/requestCache';
 import { useWallet } from '@/hooks/useWallet';
@@ -11,9 +13,17 @@ import {
   persistSessionState,
   restoreSessionState,
   clearSessionStorage,
+  getHiddenObjectTileForSession,
 } from '@/components/aether-board/game/gameStore';
 import { useGameRoleStore } from '@/stores/gameRoleStore';
-import type { Game } from './bindings';
+import { ZkProofSection } from './ZkProofSection';
+import type { ZkProofResult } from './ZkProofSection';
+import type { Game, Outcome } from './bindings';
+
+/** Convert a Buffer (32 bytes) to a hex string without 0x prefix. */
+function bufferToHex(buf: Buffer): string {
+  return buf.toString('hex');
+}
 
 const PERSIST_DEBOUNCE_MS = 400;
 
@@ -77,15 +87,29 @@ export function AetherGridGame({
   const [sessionId, setSessionId] = useState<number>(() => createRandomSessionId());
   const [player1Address, setPlayer1Address] = useState(userAddress);
   const [player1Points, setPlayer1Points] = useState(DEFAULT_POINTS);
-  const [guess, setGuess] = useState<number | null>(null);
   const [gameState, setGameState] = useState<Game | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [loading, setLoading] = useState(false);
   const [quickstartLoading, setQuickstartLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [lastSubmittedEnergy, setLastSubmittedEnergy] = useState<number | null>(null);
-  const [gamePhase, setGamePhase] = useState<'create' | 'guess' | 'reveal' | 'complete'>('create');
+  // gamePhase: create → game session initiated
+  //            guess  → AetherGame board navigation
+  //            prove  → ZK proof generation (after board finishes)
+  //            resolve → proof submitted, awaiting resolve_game
+  //            complete → game resolved
+  const [gamePhase, setGamePhase] = useState<'create' | 'guess' | 'prove' | 'resolve' | 'complete'>('create');
   const [createMode, setCreateMode] = useState<'create' | 'import' | 'load'>('create');
+  // ZK proof
+  const [treasureHashHex, setTreasureHashHex] = useState('');
+  const [boardEnergyForProof, setBoardEnergyForProof] = useState(0);
+  const [proofReady, setProofReady] = useState(false);
+  const [pendingProof, setPendingProof] = useState<ZkProofResult | null>(null);
+  const [proofSubmitted, setProofSubmitted] = useState(false);
+  // Treasure private inputs — generated at game-creation time
+  const [treasureX, setTreasureX] = useState(0);
+  const [treasureY, setTreasureY] = useState(0);
+  const [treasureNullifier, setTreasureNullifier] = useState(0);
   const [exportedAuthEntryXDR, setExportedAuthEntryXDR] = useState<string | null>(null);
   const [importAuthEntryXDR, setImportAuthEntryXDR] = useState('');
   const [importSessionId, setImportSessionId] = useState('');
@@ -130,7 +154,7 @@ export function AetherGridGame({
   };
 
   const handleStartNewGame = () => {
-    if (gameState?.winner) {
+    if (gameState?.resolved) {
       onGameComplete();
     }
 
@@ -138,7 +162,7 @@ export function AetherGridGame({
     setGamePhase('create');
     setSessionId(createRandomSessionId());
     setGameState(null);
-    setGuess(null);
+    setOutcome(null);
     setLoading(false);
     setQuickstartLoading(false);
     setError(null);
@@ -158,6 +182,15 @@ export function AetherGridGame({
     setXdrParseSuccess(false);
     setPlayer1Address(userAddress);
     setPlayer1Points(DEFAULT_POINTS);
+    // ZK proof reset
+    setTreasureHashHex('');
+    setBoardEnergyForProof(0);
+    setProofReady(false);
+    setPendingProof(null);
+    setProofSubmitted(false);
+    setTreasureX(0);
+    setTreasureY(0);
+    setTreasureNullifier(0);
   };
 
   const parsePoints = (value: string): bigint | null => {
@@ -179,28 +212,24 @@ export function AetherGridGame({
       const game = await aetherGridService.getGame(sessionId);
       setGameState(game);
 
-      // Determine game phase based on state
-      if (game && game.winner !== null && game.winner !== undefined) {
+      if (!game) return;
+
+      // Progress game phase based on ZK proof submission state.
+      // We only auto-advance past 'guess' if we're already in prove/resolve/complete.
+      // The 'guess' phase is controlled by the AetherGame board locally.
+      if (game.resolved) {
         setGamePhase('complete');
-      } else if (game && game.player1_guess !== null && game.player1_guess !== undefined &&
-        game.player2_guess !== null && game.player2_guess !== undefined) {
-        setGamePhase('reveal');
-      } else {
-        setGamePhase('guess');
+      } else if (game.player1_energy !== null || game.player2_energy !== null) {
+        // At least one player submitted — transition to resolve if we're not in 'prove'
+        setGamePhase((prev) => (prev === 'guess' || prev === 'prove' ? 'resolve' : prev));
       }
 
-      // No mostrar mensaje de éxito del otro jugador: si este usuario aún no ha enviado on-chain, limpiar success/loading
-      if (game && userAddress) {
-        const thisUserGuessed =
-          (game.player1 === userAddress && game.player1_guess != null) ||
-          (game.player2 === userAddress && game.player2_guess != null);
-        if (!thisUserGuessed) {
-          setSuccess(null);
-          setLoading(false);
-        }
+      // Fetch treasure hash from on-chain if we don't have it yet
+      if (!treasureHashHex) {
+        const hash = await aetherGridService.getTreasureHash(sessionId);
+        if (hash) setTreasureHashHex(bufferToHex(hash));
       }
-    } catch (err) {
-      // Game doesn't exist yet
+    } catch {
       setGameState(null);
     }
   };
@@ -289,13 +318,13 @@ export function AetherGridGame({
     }
   }, [gamePhase, sessionId, userAddress, gameState]);
 
-  // Auto-refresh standings when game completes (for passive player who didn't call reveal_winner)
+  // Auto-refresh standings when game completes
   useEffect(() => {
-    if (gamePhase === 'complete' && gameState?.winner) {
-      console.log('Game completed! Refreshing standings and dashboard data...');
-      onStandingsRefresh(); // Refresh standings and available points; don't call onGameComplete() here or it will close the game!
+    if (gamePhase === 'complete' && gameState?.resolved) {
+      console.log('Game completed! Refreshing standings...');
+      onStandingsRefresh();
     }
-  }, [gamePhase, gameState?.winner]);
+  }, [gamePhase, gameState?.resolved]);
 
   // Handle initial values from URL deep linking or props
   // Expected URL formats:
@@ -512,14 +541,34 @@ export function AetherGridGame({
         const placeholderPlayer2Address = await getFundedSimulationSourceAddress([player1Address, userAddress]);
         const placeholderP2Points = p1Points; // Same as P1 for simulation
 
+        // Derive treasure position deterministically from sessionId and compute
+        // its Poseidon2 hash to commit on-chain. The nullifier is the session ID
+        // itself (non-cryptographic; security can be improved later).
+        const tile = getHiddenObjectTileForSession(sessionId);
+        const txX = Math.floor(tile.x);
+        const txY = Math.floor(tile.y);
+        const txNullifier = sessionId >>> 0; // u32
+        const bbApi = await BarretenbergSync.initSingleton();
+        const hashFr = bbApi.poseidon2Hash([new Fr(BigInt(txX)), new Fr(BigInt(txY)), new Fr(BigInt(txNullifier))]);
+        const hashHex = hashFr.toString().replace(/^0x/, '').padStart(64, '0');
+        const treasureHash = Buffer.from(hashHex, 'hex');
+
+        // Store private inputs in state so ZkProofSection can use them later.
+        setTreasureHashHex(hashHex);
+        setTreasureX(txX);
+        setTreasureY(txY);
+        setTreasureNullifier(txNullifier);
+
         console.log('Preparing transaction for Player 1 to sign...');
         console.log('Using placeholder Player 2 values for simulation only');
+        console.log(`Treasure tile: (${txX}, ${txY}), nullifier: ${txNullifier}, hash: ${hashHex}`);
         const authEntryXDR = await aetherGridService.prepareStartGame(
           sessionId,
           player1Address,
           placeholderPlayer2Address,
           p1Points,
           placeholderP2Points,
+          treasureHash,
           signer
         );
 
@@ -649,12 +698,31 @@ export function AetherGridGame({
           player2AddressQuickstart,
         ]);
 
+        // Derive treasure position deterministically and compute Poseidon2 hash.
+        const qsTile = getHiddenObjectTileForSession(quickstartSessionId);
+        const qsX = Math.floor(qsTile.x);
+        const qsY = Math.floor(qsTile.y);
+        const qsNullifier = quickstartSessionId >>> 0;
+        const qsBbApi = await BarretenbergSync.initSingleton();
+        const qsHashFr = qsBbApi.poseidon2Hash([new Fr(BigInt(qsX)), new Fr(BigInt(qsY)), new Fr(BigInt(qsNullifier))]);
+        const qsHashHex = qsHashFr.toString().replace(/^0x/, '').padStart(64, '0');
+        const qsTreasureHash = Buffer.from(qsHashHex, 'hex');
+
+        // Store private inputs in state so ZkProofSection can use them later.
+        setTreasureHashHex(qsHashHex);
+        setTreasureX(qsX);
+        setTreasureY(qsY);
+        setTreasureNullifier(qsNullifier);
+
+        console.log(`[Quickstart] Treasure tile: (${qsX}, ${qsY}), nullifier: ${qsNullifier}, hash: ${qsHashHex}`);
+
         const authEntryXDR = await aetherGridService.prepareStartGame(
           quickstartSessionId,
           player1AddressQuickstart,
           placeholderPlayer2Address,
           p1Points,
           p1Points,
+          qsTreasureHash,
           player1Signer
         );
 
@@ -662,6 +730,7 @@ export function AetherGridGame({
           authEntryXDR,
           player2AddressQuickstart,
           p1Points,
+          qsTreasureHash,
           player2Signer
         );
 
@@ -739,13 +808,38 @@ export function AetherGridGame({
 
         const signer = getContractSigner();
 
+        // Player 2 must use the SAME treasure_hash that Player 1 committed.
+        // Since the hash is deterministic (derived from session ID), we recompute it here.
+        const importedTile = getHiddenObjectTileForSession(gameParams.sessionId);
+        const importedX = Math.floor(importedTile.x);
+        const importedY = Math.floor(importedTile.y);
+        const importedNullifier = gameParams.sessionId >>> 0;
+        const importBbApi = await BarretenbergSync.initSingleton();
+        const importHashFr = importBbApi.poseidon2Hash([
+          new Fr(BigInt(importedX)),
+          new Fr(BigInt(importedY)),
+          new Fr(BigInt(importedNullifier)),
+        ]);
+        const importHashHex = importHashFr.toString().replace(/^0x/, '').padStart(64, '0');
+        const importTreasureHash = Buffer.from(importHashHex, 'hex');
+
+        // Store private inputs in state so ZkProofSection has them when the prove phase starts.
+        setTreasureHashHex(importHashHex);
+        setTreasureX(importedX);
+        setTreasureY(importedY);
+        setTreasureNullifier(importedNullifier);
+
+        console.log(`[Import] Treasure tile: (${importedX}, ${importedY}), nullifier: ${importedNullifier}, hash: ${importHashHex}`);
+
         // Step 1: Import Player 1's signed auth entry and rebuild transaction
         // New simplified API - only needs: auth entry, player 2 address, player 2 points
         console.log('Importing Player 1 auth entry and rebuilding transaction...');
+
         const fullySignedTxXDR = await aetherGridService.importAndSignAuthEntry(
           importAuthEntryXDR.trim(),
           userAddress, // Player 2 address (current user)
           p2Points,
+          importTreasureHash,
           signer
         );
 
@@ -835,21 +929,35 @@ export function AetherGridGame({
         setGameState(game);
         setLoadSessionId('');
 
-        // Determine game phase based on game state
-        if (game.winner !== null && game.winner !== undefined) {
-          // Game is complete - show reveal phase with winner
-          setGamePhase('reveal');
-          const isWinner = game.winner === userAddress;
-          setSuccess(isWinner ? '🎉 You won this game!' : 'Game complete. Winner revealed.');
-        } else if (game.player1_guess !== null && game.player1_guess !== undefined &&
-          game.player2_guess !== null && game.player2_guess !== undefined) {
-          // Both players guessed, waiting for reveal
-          setGamePhase('reveal');
-          setSuccess('Game loaded! Both players have guessed. You can reveal the winner.');
+        // Restore treasure private inputs deterministically from the session ID.
+        // These are needed if the prove phase is entered after board completion.
+        {
+          const loadedTile = getHiddenObjectTileForSession(parsedSessionId);
+          const loadedX = Math.floor(loadedTile.x);
+          const loadedY = Math.floor(loadedTile.y);
+          const loadedNullifier = parsedSessionId >>> 0;
+          setTreasureX(loadedX);
+          setTreasureY(loadedY);
+          setTreasureNullifier(loadedNullifier);
+          // Compute & store the hash so the ZkProofSection sees the correct public input.
+          BarretenbergSync.initSingleton().then((api) => {
+            const hFr = api.poseidon2Hash([new Fr(BigInt(loadedX)), new Fr(BigInt(loadedY)), new Fr(BigInt(loadedNullifier))]);
+            setTreasureHashHex(hFr.toString().replace(/^0x/, '').padStart(64, '0'));
+          }).catch(console.error);
+        }
+
+        // Determine game phase based on ZK contract state
+        if (game.resolved) {
+          setGamePhase('complete');
+          setSuccess('Game loaded! Already resolved.');
+        } else if (game.player1_energy !== null || game.player2_energy !== null) {
+          // At least one proof submitted
+          setGamePhase('resolve');
+          setSuccess('Game loaded! Ready to resolve.');
         } else {
-          // Still in guessing phase
+          // Still in guessing/board phase
           setGamePhase('guess');
-          setSuccess('Game loaded! Make your guess.');
+          setSuccess('Game loaded! Navigate the board.');
         }
 
         // Clear success message after 2 seconds
@@ -911,76 +1019,66 @@ export function AetherGridGame({
     }
   };
 
-  const handleMakeGuess = async () => {
-    if (guess === null) {
-      setError('Select a number to guess');
+  /** When the board finishes (treasure found): store the energy and transition to ZK proof phase. */
+  const handleBoardFinish = async (energy: number) => {
+    // Guard: ensure this is the right player's board.
+    const store = useAetherGameStore.getState();
+    const currentPlayerNum = gameState?.player1 === userAddress ? 1 : gameState?.player2 === userAddress ? 2 : null;
+    if (currentPlayerNum == null || store.matchPlayerNumber !== currentPlayerNum) {
+      setError('This board does not match your player. Refresh or switch wallet.');
       return;
     }
 
-    await runAction(async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
-
-        const signer = getContractSigner();
-        await aetherGridService.makeGuess(sessionId, userAddress, guess, signer);
-
-        setSuccess(`Guess submitted: ${guess}`);
-        await loadGameState();
-      } catch (err) {
-        console.error('Make guess error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to make guess');
-      } finally {
-        setLoading(false);
-      }
-    });
+    setError(null);
+    setBoardEnergyForProof(energy);
+    setGamePhase('prove');
   };
 
-  /** Cuando el jugador termina en el tablero (encuentra el objeto), envía su energía al contrato (1-10). */
-  const handleBoardFinish = async (energy: number) => {
+  /** Submit a generated ZK proof to the contract. */
+  const handleSubmitProof = async (proof: ZkProofResult) => {
     await runAction(async () => {
       try {
         setLoading(true);
         setError(null);
         setSuccess(null);
 
-        // No enviar si el tablero no corresponde al usuario actual (evita enviar por el otro jugador).
-        const store = useAetherGameStore.getState();
-        const currentPlayerNum = gameState?.player1 === userAddress ? 1 : gameState?.player2 === userAddress ? 2 : null;
-        if (currentPlayerNum == null || store.matchPlayerNumber !== currentPlayerNum) {
-          setError('This board does not match your player. Refresh or switch wallet.');
-          setLoading(false);
-          return;
-        }
-
+        // Check if already submitted
         requestCache.invalidate(createCacheKey('game-state', sessionId));
         const fresh = await aetherGridService.getGame(sessionId);
         const alreadySubmitted =
           fresh &&
-          ((fresh.player1 === userAddress && fresh.player1_guess != null) ||
-            (fresh.player2 === userAddress && fresh.player2_guess != null));
+          ((fresh.player1 === userAddress && fresh.player1_energy != null) ||
+            (fresh.player2 === userAddress && fresh.player2_energy != null));
         if (alreadySubmitted) {
           await loadGameState();
           setLoading(false);
           return;
         }
 
-        // AUGUSTO ACA: enviar energía como valor 1-10 usando energía módulo 10 (0 → 10 para que sea válido)
-        const guessValue = energy % 10 || 10;
         const signer = getContractSigner();
-        await aetherGridService.makeGuess(sessionId, userAddress, guessValue, signer);
+        await aetherGridService.submitZkProof(
+          sessionId,
+          userAddress,
+          proof.proofBytes,
+          proof.publicInputsBuffer,
+          boardEnergyForProof,
+          signer
+        );
+
+        setProofSubmitted(true);
         requestCache.invalidate(createCacheKey('game-state', sessionId));
-        setLastSubmittedEnergy(energy);
         await loadGameState();
+        setGamePhase('resolve');
+        setSuccess('ZK proof submitted! Waiting for the other player or resolve the game.');
+        setTimeout(() => setSuccess(null), 4000);
       } catch (err) {
-        console.error('Submit energy error:', err);
+        console.error('ZK proof submission error:', err);
         const msg = err instanceof Error ? err.message : String(err);
-        const isAlreadyGuessed = msg.includes('AlreadyGuessed') || msg.includes('Contract, #3');
+        const isAlready = msg.includes('AlreadySubmitted') || msg.includes('Contract, #3');
         setError(
-          isAlreadyGuessed
-            ? 'You had already submitted your energy. If you see "Waiting...", refresh or wait for the other player to finish.'
-            : msg || 'Error sending energy'
+          isAlready
+            ? 'You already submitted a proof for this session.'
+            : msg || 'Error submitting ZK proof'
         );
       } finally {
         setLoading(false);
@@ -988,121 +1086,43 @@ export function AetherGridGame({
     });
   };
 
-  const waitForWinner = async () => {
-    let updatedGame = await aetherGridService.getGame(sessionId);
-    let attempts = 0;
-    while (attempts < 5 && (!updatedGame || updatedGame.winner === null || updatedGame.winner === undefined)) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      updatedGame = await aetherGridService.getGame(sessionId);
-      attempts += 1;
-    }
-    return updatedGame;
-  };
-
-  const handleRevealWinner = async () => {
+  /** Resolve the game on-chain after at least one proof has been submitted. */
+  const handleResolveGame = async () => {
     await runAction(async () => {
       try {
         setLoading(true);
         setError(null);
         setSuccess(null);
 
-        requestCache.invalidate(createCacheKey('game-state', sessionId));
-        const freshGame = await aetherGridService.getGame(sessionId);
-        const bothGuessed =
-          freshGame &&
-          freshGame.player1_guess !== null &&
-          freshGame.player1_guess !== undefined &&
-          freshGame.player2_guess !== null &&
-          freshGame.player2_guess !== undefined;
-        if (!bothGuessed) {
-          setError(
-            'Both players must submit their energy first. Make sure the other player has finished and submitted.'
-          );
-          setLoading(false);
-          return;
-        }
-
         const signer = getContractSigner();
-        await aetherGridService.revealWinner(sessionId, userAddress, signer);
+        const resolvedOutcome = await aetherGridService.resolveGame(sessionId, userAddress, signer);
+        setOutcome(resolvedOutcome);
 
-        // Fetch updated on-chain state and derive the winner from it (avoid type mismatches from tx result decoding).
-        const updatedGame = await waitForWinner();
+        // Reload state
+        requestCache.invalidate(createCacheKey('game-state', sessionId));
+        const updatedGame = await aetherGridService.getGame(sessionId);
         setGameState(updatedGame);
         setGamePhase('complete');
-        const pn = freshGame!.player1 === userAddress ? 1 : 2;
+
+        const pn = gameState?.player1 === userAddress ? 1 : 2;
         clearSessionStorage(sessionId, pn);
 
-        const isWinner = updatedGame?.winner === userAddress;
-        setSuccess(isWinner ? '🎉 You won!' : 'Game complete! Winner revealed.');
-
-        // Refresh standings immediately (without navigating away)
+        const outcomeTag = resolvedOutcome?.tag;
+        const isWinner =
+          (outcomeTag === 'Player1Won' && gameState?.player1 === userAddress) ||
+          (outcomeTag === 'Player2Won' && gameState?.player2 === userAddress) ||
+          outcomeTag === 'BothFoundTreasure';
+        setSuccess(isWinner ? '🎉 You won!' : 'Game complete! Winner determined.');
         onStandingsRefresh();
-
-        // DON'T call onGameComplete() immediately - let user see the results
-        // User can click "Start New Game" when ready
       } catch (err) {
-        console.error('Reveal winner error:', err);
+        console.error('Resolve game error:', err);
         const msg = err instanceof Error ? err.message : String(err);
-        const isBothNotGuessed =
-          msg.includes('BothPlayersNotGuessed') || msg.includes('Contract, #4') || msg.includes('Error(Contract, #4)');
-        if (isBothNotGuessed) {
-          setError(
-            'Both players must submit their energy first. Make sure the other player has finished and submitted.'
-          );
-          setLoading(false);
-          return;
-        }
-
-        const isTimeout =
-          msg.includes('Waited ') && (msg.includes('did not') || msg.includes('Returning anyway'));
-        const hashMatch = msg.match(/"hash"\s*:\s*"([a-f0-9]{64})"/i) ?? msg.match(/hash["\s:]+["']?([a-f0-9]{64})/i);
-        const txHash = hashMatch?.[1];
-
-        if (isTimeout || txHash) {
-          setError(null);
-          setSuccess('Transaction sent. Checking game state on the network…');
-          const POLL_INTERVAL_MS = 2500;
-          const POLL_MAX_MS = 90000;
-          const start = Date.now();
-          if (revealPollIntervalRef.current) clearInterval(revealPollIntervalRef.current);
-          const pollId = setInterval(async () => {
-            if (Date.now() - start > POLL_MAX_MS) {
-              clearInterval(pollId);
-              revealPollIntervalRef.current = null;
-              setLoading(false);
-              setSuccess(null);
-              setError(
-                txHash
-                  ? `Confirmation took longer than expected. Check status in the explorer (hash: ${txHash.slice(0, 8)}…). You can press "Reveal winner" again if the tx already applied.`
-                  : 'Confirmation took longer than expected. Check if the game has ended or try "Reveal winner" again.'
-              );
-              return;
-            }
-            try {
-              const game = await aetherGridService.getGame(sessionId);
-              if (game?.winner != null && game?.winner !== undefined) {
-                clearInterval(pollId);
-                revealPollIntervalRef.current = null;
-                setGameState(game);
-                setGamePhase('complete');
-                const pn = game.player1 === userAddress ? 1 : 2;
-                clearSessionStorage(sessionId, pn);
-                const isWinner = game.winner === userAddress;
-                setSuccess(isWinner ? '🎉 You won!' : 'Game complete. Winner revealed.');
-                setLoading(false);
-                onStandingsRefresh();
-              }
-            } catch (_) {
-              // sigue intentando
-            }
-          }, POLL_INTERVAL_MS);
-          revealPollIntervalRef.current = pollId;
-          setLoading(false);
-          return;
-        }
-
-        setError(msg);
-        setLoading(false);
+        const isNobody = msg.includes('NeitherPlayerSubmitted') || msg.includes('Contract, #4');
+        setError(
+          isNobody
+            ? 'No player has submitted a valid ZK proof yet. At least one player must prove first.'
+            : msg || 'Error resolving game'
+        );
       } finally {
         setLoading(false);
       }
@@ -1111,8 +1131,9 @@ export function AetherGridGame({
 
   const isPlayer1 = gameState && gameState.player1 === userAddress;
   const isPlayer2 = gameState && gameState.player2 === userAddress;
-  const hasGuessed = isPlayer1 ? gameState?.player1_guess !== null && gameState?.player1_guess !== undefined :
-    isPlayer2 ? gameState?.player2_guess !== null && gameState?.player2_guess !== undefined : false;
+  // Player has "submitted" once their energy is recorded on-chain
+  const hasSubmitted = isPlayer1 ? (gameState?.player1_energy != null) :
+    isPlayer2 ? (gameState?.player2_energy != null) : false;
 
   const setGameRole = useGameRoleStore((s) => s.setGameRole);
   const setSendStatusText = useGameRoleStore((s) => s.setSendStatusText);
@@ -1120,34 +1141,25 @@ export function AetherGridGame({
     if (gamePhase === 'guess' && gameState) {
       setGameRole(isPlayer1 ? 1 : isPlayer2 ? 2 : null);
       const sendText =
-        gameState.player1_guess != null && gameState.player2_guess != null
-          ? 'Ambos enviaron.'
-          : gameState.player1_guess != null
-            ? `Player 1 sent${isPlayer1 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Waiting for Player 2...`
-            : gameState.player2_guess != null
-              ? `Player 2 sent${isPlayer2 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Waiting for Player 1...`
+        gameState.player1_energy != null && gameState.player2_energy != null
+          ? 'Both submitted proofs.'
+          : gameState.player1_energy != null
+            ? `Player 1 submitted proof. Waiting for Player 2...`
+            : gameState.player2_energy != null
+              ? `Player 2 submitted proof. Waiting for Player 1...`
               : 'Waiting for submissions.';
       setSendStatusText(sendText);
     } else {
       setGameRole(null);
       setSendStatusText(null);
     }
-  }, [gamePhase, gameState, isPlayer1, isPlayer2, lastSubmittedEnergy, setGameRole, setSendStatusText]);
+  }, [gamePhase, gameState, isPlayer1, isPlayer2, setGameRole, setSendStatusText]);
 
-  const winningNumber = gameState?.winning_number;
-  const player1Guess = gameState?.player1_guess;
-  const player2Guess = gameState?.player2_guess;
-  const player1Distance =
-    winningNumber !== null && winningNumber !== undefined && player1Guess !== null && player1Guess !== undefined
-      ? Math.abs(Number(player1Guess) - Number(winningNumber))
-      : null;
-  const player2Distance =
-    winningNumber !== null && winningNumber !== undefined && player2Guess !== null && player2Guess !== undefined
-      ? Math.abs(Number(player2Guess) - Number(winningNumber))
-      : null;
+  const player1Energy = gameState?.player1_energy;
+  const player2Energy = gameState?.player2_energy;
 
-  const showPlayer1Card = isPlayer1 && !hasGuessed;
-  const showPlayer2Card = isPlayer2 && !hasGuessed;
+  const showPlayer1Card = isPlayer1 && !hasSubmitted;
+  const showPlayer2Card = isPlayer2 && !hasSubmitted;
 
   // Layout tipo combate: mapa a pantalla completa, fondo background.png visible, título centrado, UI estilo máquina izquierda/derecha
   if (gamePhase === 'guess' && gameState) {
@@ -1184,8 +1196,8 @@ export function AetherGridGame({
             </div> */}
             <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Status</div>
-              {gameState.player1_guess != null ? (
-                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Sent</span>
+              {gameState.player1_energy != null ? (
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Proof Submitted</span>
               ) : (
                 <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Waiting...</span>
               )}
@@ -1222,8 +1234,8 @@ export function AetherGridGame({
             </div> */}
             <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Status</div>
-              {gameState.player2_guess != null ? (
-                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Sent</span>
+              {gameState.player2_energy != null ? (
+                <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Proof Submitted</span>
               ) : (
                 <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Waiting...</span>
               )}
@@ -1237,7 +1249,7 @@ export function AetherGridGame({
                     disabled={loading}
                     className="aether-grid-combat-btn"
                   >
-                    {loading ? 'Sending...' : 'Send energy'}
+                    {loading ? 'Processing...' : '🔐 Generate ZK Proof'}
                   </button>
                 )}
                 {loading && boardPhase !== 'FINISHED' && (
@@ -1521,39 +1533,112 @@ export function AetherGridGame({
         </div>
       )}
 
-      {/* REVEAL PHASE */}
-      {gamePhase === 'reveal' && gameState && (
+      {/* PROVE PHASE — ZK proof generation */}
+      {gamePhase === 'prove' && gameState && (
         <div className="aether-create-form">
           <div className="aether-reveal-box">
-            <div className="aether-reveal-box__icon">🎊</div>
-            <h3 className="aether-reveal-box__title">Both players have finished!</h3>
-            <p className="aether-reveal-box__desc">Click to reveal the winner (whoever used less energy)</p>
-            <button
-              onClick={handleRevealWinner}
-              disabled={isBusy}
-              className="aether-create-btn aether-create-btn--primary"
-            >
-              {loading ? 'Revealing...' : 'Reveal winner'}
-            </button>
+            <div className="aether-reveal-box__icon">🔐</div>
+            <h3 className="aether-reveal-box__title">Board Complete — Generate ZK Proof</h3>
+            <p className="aether-reveal-box__desc">
+              You finished the board with <strong>{boardEnergyForProof} energy</strong>.
+              Now prove you know the treasure coordinates without revealing them on-chain.
+            </p>
           </div>
+          {error && (
+            <div className="aether-create-message aether-create-message--error">
+              <p>{error}</p>
+            </div>
+          )}
+          {success && (
+            <div className="aether-create-message aether-create-message--success">
+              <p>{success}</p>
+            </div>
+          )}
+          <ZkProofSection
+            treasureHash={treasureHashHex}
+            boardEnergy={boardEnergyForProof}
+            x={treasureX}
+            y={treasureY}
+            nullifier={treasureNullifier}
+            autoStart={true}
+            onProofReady={(result) => {
+              setPendingProof(result);
+              setProofReady(true);
+              // Auto-submit: no user action required
+              handleSubmitProof(result);
+            }}
+            disabled={loading}
+          />
+          {loading && (
+            <p className="text-xs text-center text-indigo-600 font-semibold mt-3 animate-pulse">
+              ⏳ Submitting proof on-chain…
+            </p>
+          )}
         </div>
       )}
 
-      {/* COMPLETE PHASE — un solo panel, sin caja dentro de caja; ocupa más espacio */}
+      {/* RESOLVE PHASE — at least one proof submitted, can resolve */}
+      {gamePhase === 'resolve' && gameState && (
+        <div className="aether-create-form">
+          <div className="aether-reveal-box">
+            <div className="aether-reveal-box__icon">⚖️</div>
+            <h3 className="aether-reveal-box__title">Ready to Resolve!</h3>
+            <p className="aether-reveal-box__desc">
+              {gameState.player1_energy != null && gameState.player2_energy != null
+                ? 'Both players submitted proofs. Resolve to determine the winner!'
+                : 'At least one player submitted a proof. Resolve whenever ready.'}
+            </p>
+            {!proofSubmitted && (
+              <p className="text-xs text-amber-600 font-semibold mt-2">
+                ⚠️ You haven't submitted your proof yet. You can still submit or let the opponent win.
+              </p>
+            )}
+          </div>
+          {error && (
+            <div className="aether-create-message aether-create-message--error">
+              <p>{error}</p>
+            </div>
+          )}
+          {success && (
+            <div className="aether-create-message aether-create-message--success">
+              <p>{success}</p>
+            </div>
+          )}
+          <button
+            onClick={handleResolveGame}
+            disabled={isBusy}
+            className="aether-create-btn aether-create-btn--primary"
+          >
+            {loading ? 'Resolving…' : '⚖️ Resolve Game'}
+          </button>
+        </div>
+      )}
+
+      {/* COMPLETE PHASE */}
       {gamePhase === 'complete' && gameState && (
         <div className="aether-create-form aether-create-form--complete">
           <div className="aether-complete">
             <div className="aether-complete-header">
               <div className="aether-complete-trophy">🏆</div>
               <h3 className="aether-complete-title">Game complete!</h3>
-              <p className="aether-complete-desc">Winner is whoever used less energy</p>
+              <p className="aether-complete-desc">
+                {outcome ? (
+                  outcome.tag === 'Player1Won' ? 'Player 1 used less energy and wins!' :
+                  outcome.tag === 'Player2Won' ? 'Player 2 used less energy and wins!' :
+                  outcome.tag === 'BothFoundTreasure' ? 'Tie in energy! Player 1 wins tiebreaker.' :
+                  'Neither player submitted a valid proof.'
+                ) : 'Game resolved.'}
+              </p>
             </div>
             <div className="aether-complete-players">
               {[
-                { key: 1, address: gameState.player1, energy: gameState.player1_guess, distance: player1Distance, label: 'Player 1' },
-                { key: 2, address: gameState.player2, energy: gameState.player2_guess, distance: player2Distance, label: 'Player 2' },
-              ].map(({ key, address, energy, distance, label }) => {
-                const isWinner = gameState.winner != null && address === gameState.winner;
+                { key: 1, address: gameState.player1, energy: player1Energy, label: 'Player 1' },
+                { key: 2, address: gameState.player2, energy: player2Energy, label: 'Player 2' },
+              ].map(({ key, address, energy, label }) => {
+                const isWinner =
+                  (outcome?.tag === 'Player1Won' && address === gameState.player1) ||
+                  (outcome?.tag === 'Player2Won' && address === gameState.player2) ||
+                  (outcome?.tag === 'BothFoundTreasure' && address === gameState.player1);
                 const isYou = address === userAddress;
                 return (
                   <div
@@ -1567,7 +1652,6 @@ export function AetherGridGame({
                     <div className="aether-complete-player-address">{address.slice(0, 8)}…{address.slice(-4)}</div>
                     <div className="aether-complete-player-stats">
                       <span>Energy: {energy ?? '—'}</span>
-                      {distance !== null && <span>Distance: {distance}</span>}
                     </div>
                     {isWinner && isYou && <p className="aether-complete-player-celebration">🎉 You won!</p>}
                   </div>
