@@ -2,8 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { config } from './config';
 import { Layout } from './components/Layout';
 import { MatchPage } from './components/MatchPage';
-import { RankingPage } from './components/RankingPage';
-import { ProfilePage } from './components/ProfilePage';
+import { OnboardingPage } from './components/OnboardingPage';
+import { ChallengesPage } from './components/ChallengesPage';
 import { useWallet } from './hooks/useWallet';
 
 const GAME_ID = 'aether-grid';
@@ -54,9 +54,9 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/match" replace />} />
+        <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="match" element={<MatchPage />} />
-        <Route path="ranking" element={<RankingPage />} />
-        <Route path="profile" element={<ProfilePage />} />
+        <Route path="challenges" element={<ChallengesPage />} />
         <Route path="home" element={<Navigate to="/match" replace />} />
         <Route path="*" element={<Navigate to="/match" replace />} />
       </Route>

@@ -8,27 +8,21 @@ interface LayoutProps {
 }
 
 const navItems = [
+  { id: 'onboarding', label: 'Onboarding', path: '/onboarding', icon: 'onboarding' },
   { id: 'match', label: 'Match', path: '/match', icon: 'match' },
-  { id: 'ranking', label: 'Ranking', path: '/ranking', icon: 'ranking' },
-  { id: 'profile', label: 'Profile', path: '/profile', icon: 'profile' },
+  { id: 'challenges', label: 'Challenges', path: '/challenges', icon: 'challenges' },
 ] as const;
 
 function NavIcon({ name }: { name: (typeof navItems)[number]['icon'] }) {
   const size = 22;
   switch (name) {
-    case 'ranking':
+    case 'onboarding':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M12 20V10" />
-          <path d="M18 20V4" />
-          <path d="M6 20v-4" />
-        </svg>
-      );
-    case 'profile':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+          <path d="M12 8v4" />
+          <path d="M12 16h.01" />
         </svg>
       );
     case 'match':
@@ -40,6 +34,17 @@ function NavIcon({ name }: { name: (typeof navItems)[number]['icon'] }) {
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       );
+    case 'challenges':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -47,10 +52,10 @@ function NavIcon({ name }: { name: (typeof navItems)[number]['icon'] }) {
 
 export function Layout({ children }: LayoutProps) {
   const { pathname } = useLocation();
-  const isProfileOrRanking = pathname === '/profile' || pathname === '/ranking';
+  const isOnboardingOrChallenges = pathname === '/onboarding' || pathname === '/challenges';
 
   return (
-    <div className={`appShell ${isProfileOrRanking ? 'appShell--darkScrim' : ''}`}>
+    <div className={`appShell ${isOnboardingOrChallenges ? 'appShell--darkScrim' : ''}`}>
       <header className="appHeader">
         <div className="appHeader-brand">
           {/* <h1 className="appHeader-title">{resolvedTitle}</h1> */}
@@ -81,7 +86,7 @@ export function Layout({ children }: LayoutProps) {
                   className={({ isActive }) =>
                     `appNav-item ${isActive ? 'appNav-item--active' : ''}`
                   }
-                  end={item.path === '/match'}
+                  end
                   aria-current={undefined}
                 >
                   <span className="appNav-icon">
