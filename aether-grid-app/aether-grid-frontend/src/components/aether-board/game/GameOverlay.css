@@ -153,22 +153,25 @@
 
 .aether-console-section--log {
   flex: 1;
-  min-height: 100px;
+  min-height: 180px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .aether-console-log {
   flex: 1;
-  overflow: hidden;
-  max-height: 120px;
-  font-size: 0.72rem;
+  min-height: 140px;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  font-size: 0.78rem;
   font-family: ui-monospace, monospace;
   color: rgba(0, 212, 255, 0.85);
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(0, 212, 255, 0.2);
   border-radius: 4px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
 }
@@ -197,6 +200,16 @@
 .aether-console-section--message {
   border-bottom: none;
   padding-top: 8px;
+}
+
+.aether-console-section--send-status {
+  padding-top: 8px;
+}
+
+.aether-console-send-status {
+  font-size: 0.78rem;
+  color: rgba(0, 212, 255, 0.9);
+  margin: 0;
 }
 
 .aether-console-label {

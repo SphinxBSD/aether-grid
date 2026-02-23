@@ -32,6 +32,54 @@
   border-color: rgba(0, 167, 181, 0.4);
 }
 
+/* Jugador 1: naranja */
+.wallet-switcher--player1 .wallet-status.connected {
+  border-color: rgba(232, 117, 0, 0.5);
+}
+.wallet-switcher--player1 .wallet-status.connected .status-indicator {
+  background: #e87500;
+  box-shadow: 0 0 8px rgba(232, 117, 0, 0.5);
+}
+.wallet-switcher--player1 .wallet-label {
+  color: rgba(255, 180, 100, 0.9);
+}
+.wallet-switcher--player1 .wallet-address {
+  color: #ffb46d;
+}
+.wallet-switcher--player1 .switch-button {
+  background: linear-gradient(135deg, #ff9500, #e87500);
+  color: #1a0a00;
+  border-color: rgba(232, 117, 0, 0.6);
+}
+.wallet-switcher--player1 .switch-button:hover {
+  background: #e87500;
+  color: #1a0a00;
+}
+
+/* Jugador 2: celeste */
+.wallet-switcher--player2 .wallet-status.connected {
+  border-color: rgba(0, 212, 255, 0.5);
+}
+.wallet-switcher--player2 .wallet-status.connected .status-indicator {
+  background: #00d4ff;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+.wallet-switcher--player2 .wallet-label {
+  color: rgba(0, 212, 255, 0.9);
+}
+.wallet-switcher--player2 .wallet-address {
+  color: #5ce1ff;
+}
+.wallet-switcher--player2 .switch-button {
+  background: linear-gradient(135deg, #00c8e6, #00a8cc);
+  color: #001a1f;
+  border-color: rgba(0, 212, 255, 0.5);
+}
+.wallet-switcher--player2 .switch-button:hover {
+  background: #00b8d9;
+  color: #001a1f;
+}
+
 .wallet-status.connecting {
   background: transparent;
   border-color: rgba(253, 218, 36, 0.6);

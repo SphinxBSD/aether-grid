@@ -12,6 +12,7 @@ import {
   restoreSessionState,
   clearSessionStorage,
 } from '@/components/aether-board/game/gameStore';
+import { useGameRoleStore } from '@/stores/gameRoleStore';
 import type { Game } from './bindings';
 
 const PERSIST_DEBOUNCE_MS = 400;
@@ -82,6 +83,7 @@ export function AetherGridGame({
   const [quickstartLoading, setQuickstartLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [lastSubmittedEnergy, setLastSubmittedEnergy] = useState<number | null>(null);
   const [gamePhase, setGamePhase] = useState<'create' | 'guess' | 'reveal' | 'complete'>('create');
   const [createMode, setCreateMode] = useState<'create' | 'import' | 'load'>('create');
   const [exportedAuthEntryXDR, setExportedAuthEntryXDR] = useState<string | null>(null);
@@ -256,8 +258,10 @@ export function AetherGridGame({
     const g = gameStateRef.current;
     if (g?.player1 != null && g?.player2 != null) {
       const pn = g.player1 === userAddress ? 1 : 2;
-      useAetherGameStore.getState().reset();
-      useAetherGameStore.getState().initMatchGame(sessionId, pn);
+      const store = useAetherGameStore.getState();
+      store.reset();
+      store.initMatchGame(sessionId, pn);
+      store.startGame();
       skipNextFinishRef.current = true;
     }
   }
@@ -277,9 +281,11 @@ export function AetherGridGame({
     if (restored) {
       if (restored.phase === 'FINISHED') skipNextFinishRef.current = true;
       store.restoreState(restored);
+      if (restored.phase === 'IDLE') store.startGame();
     } else {
       store.reset();
       store.initMatchGame(sessionId, playerNumber);
+      store.startGame();
     }
   }, [gamePhase, sessionId, userAddress, gameState]);
 
@@ -956,7 +962,6 @@ export function AetherGridGame({
             (fresh.player2 === userAddress && fresh.player2_guess != null));
         if (alreadySubmitted) {
           await loadGameState();
-          setSuccess('Ya habías enviado tu energía. Esperando al otro jugador...');
           setLoading(false);
           return;
         }
@@ -966,7 +971,7 @@ export function AetherGridGame({
         const signer = getContractSigner();
         await aetherGridService.makeGuess(sessionId, userAddress, guessValue, signer);
         requestCache.invalidate(createCacheKey('game-state', sessionId));
-        setSuccess(`Energía enviada: ${energy}. Esperando al otro jugador...`);
+        setLastSubmittedEnergy(energy);
         await loadGameState();
       } catch (err) {
         console.error('Submit energy error:', err);
@@ -1109,6 +1114,26 @@ export function AetherGridGame({
   const hasGuessed = isPlayer1 ? gameState?.player1_guess !== null && gameState?.player1_guess !== undefined :
                      isPlayer2 ? gameState?.player2_guess !== null && gameState?.player2_guess !== undefined : false;
 
+  const setGameRole = useGameRoleStore((s) => s.setGameRole);
+  const setSendStatusText = useGameRoleStore((s) => s.setSendStatusText);
+  useEffect(() => {
+    if (gamePhase === 'guess' && gameState) {
+      setGameRole(isPlayer1 ? 1 : isPlayer2 ? 2 : null);
+      const sendText =
+        gameState.player1_guess != null && gameState.player2_guess != null
+          ? 'Ambos enviaron.'
+          : gameState.player1_guess != null
+            ? `Jugador 1 envió${isPlayer1 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Esperando a Jugador 2...`
+            : gameState.player2_guess != null
+              ? `Jugador 2 envió${isPlayer2 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Esperando a Jugador 1...`
+              : 'Esperando envíos.';
+      setSendStatusText(sendText);
+    } else {
+      setGameRole(null);
+      setSendStatusText(null);
+    }
+  }, [gamePhase, gameState, isPlayer1, isPlayer2, lastSubmittedEnergy, setGameRole, setSendStatusText]);
+
   const winningNumber = gameState?.winning_number;
   const player1Guess = gameState?.player1_guess;
   const player2Guess = gameState?.player2_guess;
@@ -1134,7 +1159,7 @@ export function AetherGridGame({
           </span>
         </h2> */}
         <div className="aether-grid-combat__ui aether-grid-combat__ui--left" aria-label="Jugador 1">
-          <div className="aether-grid-combat-card">
+          <div className="aether-grid-combat-card aether-grid-combat-card--player1">
             <div className="aether-grid-combat-card__header">JUGADOR 1</div>
             {/* <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Sesión</div>
@@ -1143,11 +1168,6 @@ export function AetherGridGame({
             {error && (
               <div className="aether-grid-combat-card__section">
                 <p className="aether-grid-combat-msg aether-grid-combat-msg--error">{error}</p>
-              </div>
-            )}
-            {success && (
-              <div className="aether-grid-combat-card__section">
-                <p className="aether-grid-combat-msg aether-grid-combat-msg--success">{success}</p>
               </div>
             )}
             <div className="aether-grid-combat-card__section">
@@ -1166,7 +1186,7 @@ export function AetherGridGame({
                 <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Esperando...</span>
               )}
             </div>
-            {(isPlayer1 || isPlayer2) && !hasGuessed && (
+            {isPlayer1 && !hasGuessed && (
               <div className="aether-grid-combat-card__section">
                 {boardPhase === 'FINISHED' && (
                   <button
@@ -1183,15 +1203,10 @@ export function AetherGridGame({
                 )}
               </div>
             )}
-            {hasGuessed && (
-              <div className="aether-grid-combat-card__section">
-                <p className="aether-grid-combat-msg aether-grid-combat-msg--success">✓ Ya enviaste tu energía. Esperando al otro jugador...</p>
-              </div>
-            )}
           </div>
         </div>
-        <div className="aether-grid-combat__ui aether-grid-combat__ui--right" aria-label="Jugador 2">
-          <div className="aether-grid-combat-card">
+        <div className="aether-grid-combat__ui aether-grid-combat__ui--right" aria-label="Jugador 2 y estado">
+          <div className="aether-grid-combat-card aether-grid-combat-card--player2">
             <div className="aether-grid-combat-card__header">JUGADOR 2</div>
             <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Wallet</div>
@@ -1209,6 +1224,23 @@ export function AetherGridGame({
                 <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--waiting">Esperando...</span>
               )}
             </div>
+            {isPlayer2 && !hasGuessed && (
+              <div className="aether-grid-combat-card__section">
+                {boardPhase === 'FINISHED' && (
+                  <button
+                    type="button"
+                    onClick={() => handleBoardFinish(boardEnergy)}
+                    disabled={loading}
+                    className="aether-grid-combat-btn"
+                  >
+                    {loading ? 'Enviando...' : 'Enviar energía'}
+                  </button>
+                )}
+                {loading && boardPhase !== 'FINISHED' && (
+                  <p className="aether-grid-combat-msg">Enviando energía...</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

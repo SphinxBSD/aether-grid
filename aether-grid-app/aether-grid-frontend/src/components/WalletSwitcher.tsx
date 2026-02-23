@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useWallet } from '../hooks/useWallet';
+import { useGameRoleStore } from '../stores/gameRoleStore';
 import './WalletSwitcher.css';
 
 export function WalletSwitcher() {
@@ -15,9 +16,13 @@ export function WalletSwitcher() {
   } = useWallet();
 
   const currentPlayer = getCurrentDevPlayer();
+  const gameRole = useGameRoleStore((s) => s.gameRole);
   const hasAttemptedConnection = useRef(false);
 
-  // Auto-connect to Player 1 on mount (only try once)
+  // En partida usamos el rol del juego (JUGADOR 1/2) para etiqueta y color; si no, el número de dev wallet
+  const displayRole = gameRole ?? currentPlayer ?? 1;
+  const inGame = gameRole !== null;
+
   useEffect(() => {
     if (!isConnected && !isConnecting && !hasAttemptedConnection.current) {
       hasAttemptedConnection.current = true;
@@ -55,7 +60,7 @@ export function WalletSwitcher() {
   }
 
   return (
-    <div className="wallet-switcher">
+    <div className={`wallet-switcher wallet-switcher--player${displayRole}`}>
       {error && (
         <div className="wallet-error">
           {error}
@@ -67,10 +72,10 @@ export function WalletSwitcher() {
           <span className="status-indicator"></span>
           <div className="wallet-details">
             <div className="wallet-label wallet-label--full">
-              Connected Player {currentPlayer}
+              {inGame ? `JUGADOR ${displayRole}` : `Connected Player ${currentPlayer ?? displayRole}`}
             </div>
             <div className="wallet-label wallet-label--short">
-              P{currentPlayer}
+              {inGame ? `J${displayRole}` : `P${currentPlayer ?? displayRole}`}
             </div>
             <div className="wallet-address">
               {publicKey ? `${publicKey.slice(0, 8)}...${publicKey.slice(-4)}` : ''}
@@ -82,7 +87,9 @@ export function WalletSwitcher() {
               className="switch-button"
               disabled={isConnecting}
             >
-              <span className="switch-button-full">Switch to Player {currentPlayer === 1 ? 2 : 1}</span>
+              <span className="switch-button-full">
+                {inGame ? `Cambiar a Jugador ${displayRole === 1 ? 2 : 1}` : `Switch to Player ${currentPlayer === 1 ? 2 : 1}`}
+              </span>
               <span className="switch-button-short">Switch</span>
             </button>
           )}

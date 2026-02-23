@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useGameRoleStore } from '@/stores/gameRoleStore';
 import { useAetherGameStore, type GamePhase, type ActivePower } from './gameStore';
 import './GameOverlay.css';
 
 const phaseLabels: Record<GamePhase, string> = {
   IDLE: '',
   SPAWN_SELECT: 'Elige tu posición inicial',
-  PLAYING: 'Haz click en una casilla o usa un poder',
+  PLAYING: 'Muevete o usa un poder',
   MOVING: 'Moviendo...',
   FINISHED: '¡Encontraste el objeto!',
 };
@@ -44,14 +45,20 @@ export function GameOverlay() {
     actionLog,
   } = useAetherGameStore();
 
+  const sendStatusText = useGameRoleStore((s) => s.sendStatusText);
   const canDrill = phase === 'PLAYING' && !isDrilling && !impulseBlockDrill;
   const showPowers = phase === 'PLAYING' || phase === 'MOVING';
   const messageAge = typeof lastMessageAt === 'number' ? performance.now() - lastMessageAt : 9999;
   const showMessage = lastMessage && messageAge < 3000;
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (phase === 'IDLE') startGame();
   }, [phase, startGame]);
+
+  useEffect(() => {
+    logContainerRef.current?.scrollTo({ top: logContainerRef.current.scrollHeight, behavior: 'smooth' });
+  }, [actionLog.length]);
 
   return (
     <div className="aether-overlay">
@@ -61,21 +68,25 @@ export function GameOverlay() {
             <span className="aether-console-title">SISTEMA</span>
             <span className="aether-console-badge">AETHER</span>
           </div>
+          {sendStatusText && (
+            <div className="aether-console-section aether-console-section--send-status">
+              <p className="aether-console-send-status">{sendStatusText}</p>
+            </div>
+          )}
 
           <div className="aether-console-section">
             <div className="aether-console-label">Estado</div>
-            
             <p className="aether-status">
               {phase === 'FINISHED' ? phaseLabels.FINISHED : phaseLabels[phase]}
             </p>
           </div>
+
 
           {(showPowers || phase === 'FINISHED') && (
             <>
               <div className="aether-console-section aether-console-section--energy">
                 <div className="aether-console-label">Energía acumulada</div>
                 <div className="aether-console-value aether-console-value--energy">{energy}</div>
-                <div className="aether-console-hint">(menor gana)</div>
               </div>
 
               {showPowers && (
@@ -169,11 +180,11 @@ export function GameOverlay() {
 
                   <div className="aether-console-section aether-console-section--log">
                     <div className="aether-console-label">Historial</div>
-                    <div className="aether-console-log">
+                    <div className="aether-console-log" ref={logContainerRef}>
                       {actionLog.length === 0 ? (
                         <div className="aether-console-log-empty">—</div>
                       ) : (
-                        actionLog.slice().reverse().slice(0, 5).map((line, i) => (
+                        actionLog.map((line, i) => (
                           <div key={`${i}-${line}`} className="aether-console-log-line">{line}</div>
                         ))
                       )}

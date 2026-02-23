@@ -331,7 +331,7 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
       impulseUses: IMPULSE_MAX,
       impulseBlockDrill: false,
       isImpulseMove: false,
-      actionLog: pushLog(state.actionLog, `Spawn en (${x + 1},${y + 1}) → Exitoso`),
+      actionLog: pushLog(state.actionLog, `Spawn (${x + 1},${y + 1})`),
     }));
   },
 
@@ -352,7 +352,7 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
         impulseUses: s.impulseUses - 1,
         impulseBlockDrill: true,
         isImpulseMove: true,
-        actionLog: pushLog(s.actionLog, `Impulso → (${destination.x + 1},${destination.y + 1}) → Exitoso`),
+        actionLog: pushLog(s.actionLog, `Impulso (${destination.x + 1},${destination.y + 1})`),
       }));
       return;
     }
@@ -370,7 +370,7 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
       targetTile: { x, y },
       pathQueue: path,
       isImpulseMove: false,
-      actionLog: pushLog(s.actionLog, `Mover → (${x + 1},${y + 1}) → Exitoso`),
+      actionLog: pushLog(s.actionLog, `Movimiento (${x + 1},${y + 1})`),
     }));
   },
 
@@ -403,7 +403,6 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
               impulseBlockDrill: false,
               isImpulseMove: false,
               dashTrailPositions: [],
-              actionLog: pushLog(s.actionLog, `Llegado a (${next.x + 1},${next.y + 1}) → Exitoso`),
             }
           : {}),
       }));
@@ -446,7 +445,7 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
     }));
 
     set((s) => ({
-      actionLog: pushLog(s.actionLog, `Perforar (${playerTile.x + 1},${playerTile.y + 1}) → ${hit ? 'Exitoso' : 'Fallido'}`),
+      actionLog: pushLog(s.actionLog, `Perforar (${playerTile.x + 1},${playerTile.y + 1}) — ${hit ? 'Exitoso' : 'Fallido'}`),
       lastMessage: hit ? '¡Encontraste el objeto!' : 'Fallaste la perforación',
       lastMessageAt: performance.now(),
     }));
@@ -489,7 +488,7 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
       radarEffect: { tiles, startTime: performance.now() },
       lastMessage: anyHit ? 'Radar → alguna casilla SÍ' : 'Radar → 8 casillas, ninguna SÍ',
       lastMessageAt: performance.now(),
-      actionLog: pushLog(s.actionLog, `Radar (${x + 1},${y + 1}) → 8 casillas → ${anyHit ? 'Exitoso' : 'Fallido'}`),
+      actionLog: pushLog(s.actionLog, `Radar (${x + 1},${y + 1}) — ${anyHit ? 'Exitoso' : 'Fallido'}`),
     }));
     setTimeout(() => set({ radarEffect: null }), RADAR_PING_MS);
   },
@@ -512,7 +511,7 @@ export const useAetherGameStore = create<AetherGameState & AetherGameActions>((s
       scanLineEffect: { type: scanMode, index: scanIndex, result, startTime: performance.now() },
       lastMessage: result ? 'Escáner → SÍ' : 'Escáner → NO',
       lastMessageAt: performance.now(),
-      actionLog: pushLog(s.actionLog, `Escáner ${scanMode} ${scanIndex + 1} → ${result ? 'Exitoso' : 'Fallido'}`),
+      actionLog: pushLog(s.actionLog, `Escáner ${scanMode === 'row' ? 'fila' : 'col'} ${scanIndex + 1} — ${result ? 'Exitoso' : 'Fallido'}`),
     }));
     setTimeout(() => set({ scanLineEffect: null }), SCAN_LINE_MS);
   },

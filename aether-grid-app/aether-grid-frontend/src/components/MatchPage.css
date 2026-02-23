@@ -94,6 +94,35 @@
   opacity: 0.6;
 }
 
+/* Jugador 1: acento naranja */
+.aether-grid-combat-card--player1 {
+  border-color: rgba(232, 117, 0, 0.55);
+  box-shadow: inset -2px 0 12px rgba(0, 0, 0, 0.4), 0 0 24px rgba(232, 117, 0, 0.12);
+}
+.aether-grid-combat-card--player1::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 149, 0, 0.7), transparent);
+}
+.aether-grid-combat-card--player1 .aether-grid-combat-card__header {
+  border-bottom-color: rgba(232, 117, 0, 0.35);
+  color: rgba(255, 180, 100, 0.98);
+}
+.aether-grid-combat-card--player1 .aether-grid-combat-card__value {
+  color: rgba(255, 180, 100, 0.95);
+}
+
+/* Jugador 2: acento celeste */
+.aether-grid-combat-card--player2 {
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: inset -2px 0 12px rgba(0, 0, 0, 0.4), 0 0 24px rgba(0, 212, 255, 0.1);
+}
+.aether-grid-combat-card--player2 .aether-grid-combat-card__header {
+  border-bottom-color: rgba(0, 212, 255, 0.3);
+  color: rgba(0, 212, 255, 0.98);
+}
+.aether-grid-combat-card--player2 .aether-grid-combat-card__value {
+  color: rgba(0, 230, 255, 0.95);
+}
+
 .aether-grid-combat-card__header {
   padding: 10px 14px;
   border-bottom: 1px solid rgba(0, 212, 255, 0.25);
@@ -181,6 +210,11 @@
 
 .aether-grid-combat-card .aether-grid-combat-msg--success {
   color: #00ffaa;
+}
+
+.aether-grid-combat-card .aether-grid-combat-msg--send-status {
+  color: rgba(0, 212, 255, 0.9);
+  font-size: 0.78rem;
 }
 
 /* Título principal del combate: centrado arriba */
