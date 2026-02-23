@@ -3,7 +3,7 @@ import { config } from './config';
 import { Layout } from './components/Layout';
 import { MatchPage } from './components/MatchPage';
 import { OnboardingPage } from './components/OnboardingPage';
-import { ChallengesPage } from './components/ChallengesPage';
+// import { ChallengesPage } from './components/ChallengesPage';
 import { useWallet } from './hooks/useWallet';
 
 const GAME_ID = 'aether-grid';
@@ -56,7 +56,9 @@ export default function App() {
         <Route index element={<Navigate to="/match" replace />} />
         <Route path="onboarding" element={<OnboardingPage />} />
         <Route path="match" element={<MatchPage />} />
-        <Route path="challenges" element={<ChallengesPage />} />
+        {/* Challenges: commented out for now */}
+        {/* <Route path="challenges" element={<ChallengesPage />} /> */}
+        <Route path="challenges" element={<Navigate to="/match" replace />} />
         <Route path="home" element={<Navigate to="/match" replace />} />
         <Route path="*" element={<Navigate to="/match" replace />} />
       </Route>
