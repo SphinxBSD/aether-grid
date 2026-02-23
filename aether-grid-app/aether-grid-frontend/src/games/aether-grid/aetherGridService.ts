@@ -286,36 +286,48 @@ export class AetherGridService {
   /**
    * STEP 3: Finalize and broadcast the fully-signed start_game transaction.
    *
-   * IMPORTANT: Do NOT call tx.simulate() here. The signed auth entries from both
-   * players were injected in step 2. A re-simulation would discard those signatures
-   * and replace them with fresh unsigned stubs from the RPC node.
+   * Strategy:
+   *  1. Extract the signed auth entries from the encoded operation BEFORE simulate()
+   *     wipes them (simulate() replaces auth entries with fresh unsigned stubs).
+   *  2. Simulate to populate simulationData (required by signAndSend).
+   *  3. Restore the signed auth entries into simulationData.result.auth.
+   *  4. Call signAndSend() — now it has both the footprint and the valid signatures.
    */
   async finalizeStartGame(
-    xdr: string,
+    txXdr: string,
     signerAddress: string,
     signer: Pick<contract.ClientOptions, 'signTransaction' | 'signAuthEntry'>,
-    authTtlMinutes?: number
+    _authTtlMinutes?: number
   ) {
     const client = this.createSigningClient(signerAddress, signer);
-    const tx = client.txFromXDR(xdr);
+    const tx = client.txFromXDR(txXdr);
 
-    // Sign the outer transaction envelope (fee bump / sequence number) without
-    // re-simulating, so the embedded auth entries stay intact.
+    // Step 1 — extract signed auth entries from the raw XDR envelope.
+    // They live in the invokeHostFunction operation's `auth` list.
+    let savedAuthEntries: xdr.SorobanAuthorizationEntry[] = [];
     try {
-      return await (tx as any).signAndSend();
-    } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isNoSig =
-        msg.includes('NoSignatureNeededError') ||
-        msg.includes('This is a read call') ||
-        msg.includes('requires no signature') ||
-        msg.includes('force: true');
-
-      if (isNoSig) {
-        return await (tx as any).signAndSend({ force: true });
+      const parsedTx = TransactionBuilder.fromXDR(txXdr, NETWORK_PASSPHRASE) as any;
+      const op = parsedTx.operations?.[0];
+      if (op?.auth && Array.isArray(op.auth) && op.auth.length > 0) {
+        savedAuthEntries = op.auth as xdr.SorobanAuthorizationEntry[];
+        console.log(`[finalizeStartGame] Saved ${savedAuthEntries.length} signed auth entries from XDR`);
       }
-      throw err;
+    } catch (err) {
+      console.warn('[finalizeStartGame] Could not extract auth entries from XDR:', err);
     }
+
+    // Step 2 — simulate to populate simulationData (signAndSend requires it).
+    await tx.simulate();
+    console.log('[finalizeStartGame] Simulation complete — restoring signed auth entries');
+
+    // Step 3 — restore signed auth entries into simulationData.result.auth.
+    if (savedAuthEntries.length > 0 && tx.simulationData?.result) {
+      tx.simulationData.result.auth = savedAuthEntries;
+      console.log('[finalizeStartGame] Auth entries restored');
+    }
+
+    // Step 4 — sign (outer envelope) and send.
+    return await (tx as any).signAndSend();
   }
 
   /**
