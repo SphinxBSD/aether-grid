@@ -1124,9 +1124,9 @@ export function AetherGridGame({
           ? 'Ambos enviaron.'
           : gameState.player1_guess != null
             ? `Player 1 sent${isPlayer1 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Waiting for Player 2...`
-                    : gameState.player2_guess != null
-                      ? `Player 2 sent${isPlayer2 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Waiting for Player 1...`
-                      : 'Waiting for submissions.';
+            : gameState.player2_guess != null
+              ? `Player 2 sent${isPlayer2 && lastSubmittedEnergy != null ? ` (${lastSubmittedEnergy})` : ''}. Waiting for Player 1...`
+              : 'Waiting for submissions.';
       setSendStatusText(sendText);
     } else {
       setGameRole(null);
@@ -1177,12 +1177,13 @@ export function AetherGridGame({
               <div className="aether-grid-combat-card__label">Wallet</div>
               <div className="aether-grid-combat-card__value">{gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}</div>
             </div>
-            <div className="aether-grid-combat-card__section">
+
+            {/* <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Points</div>
               <div className="aether-grid-combat-card__value">{(Number(gameState.player1_points) / 10000000).toFixed(2)}</div>
-            </div>
+            </div> */}
             <div className="aether-grid-combat-card__section">
-              <div className="aether-grid-combat-card__label">Estado</div>
+              <div className="aether-grid-combat-card__label">Status</div>
               {gameState.player1_guess != null ? (
                 <span className="aether-grid-combat-card__badge aether-grid-combat-card__badge--sent">✓ Sent</span>
               ) : (
@@ -1215,10 +1216,10 @@ export function AetherGridGame({
               <div className="aether-grid-combat-card__label">Wallet</div>
               <div className="aether-grid-combat-card__value">{gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}</div>
             </div>
-            <div className="aether-grid-combat-card__section">
+            {/* <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Points</div>
               <div className="aether-grid-combat-card__value">{(Number(gameState.player2_points) / 10000000).toFixed(2)}</div>
-            </div>
+            </div> */}
             <div className="aether-grid-combat-card__section">
               <div className="aether-grid-combat-card__label">Status</div>
               {gameState.player2_guess != null ? (
@@ -1538,31 +1539,42 @@ export function AetherGridGame({
         </div>
       )}
 
-      {/* COMPLETE PHASE */}
+      {/* COMPLETE PHASE — un solo panel, sin caja dentro de caja; ocupa más espacio */}
       {gamePhase === 'complete' && gameState && (
-        <div className="aether-create-form">
-          <div className="aether-reveal-box">
-            <div className="aether-reveal-box__icon">🏆</div>
-            <h3 className="aether-reveal-box__title">Game complete!</h3>
-            <p className="aether-reveal-box__desc">Winner is whoever used less energy</p>
-            <div className="aether-create-export__box" style={{ textAlign: 'left', marginTop: '1rem', marginBottom: '1rem' }}>
-              <p className="aether-create-export__title">Player 1</p>
-              <p className="aether-create-hint">{gameState.player1.slice(0, 8)}...{gameState.player1.slice(-4)}</p>
-              <p className="aether-create-label">Energy: {gameState.player1_guess ?? '—'}{player1Distance !== null ? ` (distance ${player1Distance})` : ''}</p>
+        <div className="aether-create-form aether-create-form--complete">
+          <div className="aether-complete">
+            <div className="aether-complete-header">
+              <div className="aether-complete-trophy">🏆</div>
+              <h3 className="aether-complete-title">Game complete!</h3>
+              <p className="aether-complete-desc">Winner is whoever used less energy</p>
             </div>
-            <div className="aether-create-export__box" style={{ textAlign: 'left', marginBottom: '1rem' }}>
-              <p className="aether-create-export__title">Player 2</p>
-              <p className="aether-create-hint">{gameState.player2.slice(0, 8)}...{gameState.player2.slice(-4)}</p>
-              <p className="aether-create-label">Energy: {gameState.player2_guess ?? '—'}{player2Distance !== null ? ` (distance ${player2Distance})` : ''}</p>
+            <div className="aether-complete-players">
+              {[
+                { key: 1, address: gameState.player1, energy: gameState.player1_guess, distance: player1Distance, label: 'Player 1' },
+                { key: 2, address: gameState.player2, energy: gameState.player2_guess, distance: player2Distance, label: 'Player 2' },
+              ].map(({ key, address, energy, distance, label }) => {
+                const isWinner = gameState.winner != null && address === gameState.winner;
+                const isYou = address === userAddress;
+                return (
+                  <div
+                    key={key}
+                    className={`aether-complete-player ${isWinner ? 'aether-complete-player--winner' : ''}`}
+                  >
+                    <div className="aether-complete-player-top">
+                      <span className="aether-complete-player-label">{label}</span>
+                      {isWinner && <span className="aether-complete-player-winner-tag">Winner</span>}
+                    </div>
+                    <div className="aether-complete-player-address">{address.slice(0, 8)}…{address.slice(-4)}</div>
+                    <div className="aether-complete-player-stats">
+                      <span>Energy: {energy ?? '—'}</span>
+                      {distance !== null && <span>Distance: {distance}</span>}
+                    </div>
+                    {isWinner && isYou && <p className="aether-complete-player-celebration">🎉 You won!</p>}
+                  </div>
+                );
+              })}
             </div>
-            {gameState.winner && (
-              <div className="aether-create-export__box" style={{ borderColor: 'rgba(0, 212, 255, 0.5)' }}>
-                <p className="aether-create-export__title">Winner</p>
-                <p className="aether-create-label">{gameState.winner.slice(0, 8)}...{gameState.winner.slice(-4)}</p>
-                {gameState.winner === userAddress && <p className="aether-create-message aether-create-message--success" style={{ marginTop: '0.5rem', marginBottom: 0 }}>🎉 You won!</p>}
-              </div>
-            )}
-            <button onClick={handleStartNewGame} className="aether-create-btn aether-create-btn--secondary" style={{ marginTop: '1.25rem' }}>
+            <button onClick={handleStartNewGame} className="aether-create-btn aether-create-btn--secondary aether-complete-new-btn">
               New game
             </button>
           </div>
