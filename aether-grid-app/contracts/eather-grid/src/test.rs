@@ -1,15 +1,13 @@
 #![cfg(test)]
 
-//! Unit tests for the Eather Grid ZK contract.
+//! Unit tests for the Eather Grid ZK Coordinates contract.
 //!
-//! Uses two mocks:
-//!  - `MockGameHub`   – no-op hub that satisfies the GameHub trait.
-//!  - `MockVerifier`  – a configurable verifier: traps if `should_fail` is set,
-//!                      succeeds otherwise.  This lets us simulate both valid and
-//!                      invalid proof submissions without a real UltraHonk prover.
+//! Mocks:
+//!  - `MockGameHub`   – no-op hub satisfying the GameHub interface.
+//!  - `MockVerifier`  – traps if proof starts with 0xff or is empty; succeeds otherwise.
 //!
-//! Integration tests that exercise the real Verifier WASM belong in a separate
-//! workspace-level test crate (not shown here).
+//! The `energy_used` field is caller-supplied and therefore fully controllable
+//! in these tests without needing a real Noir prover.
 
 use crate::{EatherGridContract, EatherGridContractClient, Error, Outcome};
 use soroban_sdk::testutils::{Address as _, Ledger as _};
@@ -19,7 +17,6 @@ use soroban_sdk::{contract, contractimpl, Address, Bytes, BytesN, Env};
 // Mock Contracts
 // ============================================================================
 
-/// Minimal Game Hub that records nothing (pure no-op).
 #[contract]
 pub struct MockGameHub;
 
@@ -36,30 +33,20 @@ impl MockGameHub {
     ) {
         // no-op
     }
-
     pub fn end_game(_env: Env, _session_id: u32, _player1_won: bool) {
         // no-op
     }
-
     pub fn add_game(_env: Env, _game_address: Address) {
         // no-op
     }
 }
 
-/// Configurable mock verifier.
-///
-/// - When called with `proof[0] == 0xff` it traps (simulates invalid proof).
-/// - Otherwise it succeeds (simulates valid proof).
-///
-/// This approach avoids external state and keeps each test self-contained.
+/// Mock verifier: traps if proof is empty or starts with 0xff; passes otherwise.
 #[contract]
 pub struct MockVerifier;
 
 #[contractimpl]
 impl MockVerifier {
-    /// Verifies a proof.  Traps if `proof` is empty or starts with `0xff`.
-    ///
-    /// Contract obligation: never return `false`; always trap on failure.
     pub fn verify_proof(_env: Env, proof: Bytes, _public_inputs: Bytes) {
         if proof.is_empty() {
             panic!("verify_proof: empty proof");
@@ -67,12 +54,12 @@ impl MockVerifier {
         if proof.get(0) == Some(0xff) {
             panic!("verify_proof: invalid proof");
         }
-        // Success → do nothing.
+        // Otherwise: success (no-op).
     }
 }
 
 // ============================================================================
-// Test Helpers
+// Test Setup
 // ============================================================================
 
 struct TestSetup {
@@ -80,8 +67,27 @@ struct TestSetup {
     client: EatherGridContractClient<'static>,
     player1: Address,
     player2: Address,
-    /// Pre-computed target_public_inputs for session_id=1 (convenience).
     verifier_addr: Address,
+}
+
+/// A fixed 32-byte treasure hash used as the session's `xy_nullifier_hashed`.
+fn test_treasure_hash(env: &Env) -> BytesN<32> {
+    BytesN::from_array(env, &[0xABu8; 32])
+}
+
+/// Encode `treasure_hash` as the `Bytes` form expected by `submit_zk_proof`.
+fn treasure_hash_as_bytes(env: &Env, hash: &BytesN<32>) -> Bytes {
+    Bytes::from_array(env, &hash.to_array())
+}
+
+/// A valid proof for the MockVerifier: any non-empty bytes not starting with 0xff.
+fn valid_proof(env: &Env) -> Bytes {
+    Bytes::from_array(env, &[0x01u8; 64])
+}
+
+/// An invalid proof that causes MockVerifier to trap.
+fn invalid_proof(env: &Env) -> Bytes {
+    Bytes::from_array(env, &[0xffu8; 64])
 }
 
 fn setup() -> TestSetup {
@@ -100,15 +106,10 @@ fn setup() -> TestSetup {
     });
 
     let admin = Address::generate(&env);
-
-    // Deploy mocks.
     let hub_addr = env.register(MockGameHub, ());
     let verifier_addr = env.register(MockVerifier, ());
-
-    // Deploy eather-grid with all three constructor args.
     let contract_id = env.register(EatherGridContract, (&admin, &hub_addr, &verifier_addr));
     let client = EatherGridContractClient::new(&env, &contract_id);
-
     let player1 = Address::generate(&env);
     let player2 = Address::generate(&env);
 
@@ -123,28 +124,21 @@ fn setup() -> TestSetup {
 
 const POINTS: i128 = 100_0000_000;
 
-/// Build a "valid" proof for mock verifier: any non-empty bytes that don't
-/// start with 0xff.
-fn valid_proof(env: &Env) -> Bytes {
-    Bytes::from_array(env, &[0x01u8; 64])
+/// Start a standard game; returns the treasure hash used.
+fn start(ts: &TestSetup, session_id: u32) -> BytesN<32> {
+    let hash = test_treasure_hash(&ts.env);
+    ts.client.start_game(
+        &session_id,
+        &ts.player1,
+        &ts.player2,
+        &POINTS,
+        &POINTS,
+        &hash,
+    );
+    hash
 }
 
-/// Build an "invalid" proof for mock verifier (starts with 0xff → traps).
-fn invalid_proof(env: &Env) -> Bytes {
-    Bytes::from_array(env, &[0xffu8; 64])
-}
-
-/// Get the target_public_inputs for a started session and re-encode as Bytes.
-fn get_public_inputs(
-    client: &EatherGridContractClient<'static>,
-    env: &Env,
-    session_id: u32,
-) -> Bytes {
-    let target: BytesN<32> = client.get_target(&session_id);
-    Bytes::from_array(env, &target.to_array())
-}
-
-/// Assert a `Result` contains a specific [`Error`] variant.
+/// Helper to assert an error variant from a try_* call.
 fn assert_error<T, E>(
     result: &Result<Result<T, E>, Result<Error, soroban_sdk::InvokeError>>,
     expected: Error,
@@ -152,7 +146,7 @@ fn assert_error<T, E>(
     match result {
         Err(Ok(actual)) => assert_eq!(
             *actual, expected,
-            "expected error {expected:?} ({} code), got {actual:?}",
+            "expected {expected:?} ({}), got {actual:?}",
             expected as u32
         ),
         Err(Err(_)) => panic!("expected {expected:?} but got invocation error"),
@@ -162,218 +156,206 @@ fn assert_error<T, E>(
 }
 
 // ============================================================================
-// Basic Game Flow
+// Game Initialization
 // ============================================================================
 
 #[test]
-fn test_start_game_stores_target() {
+fn test_start_game_stores_treasure_hash() {
     let ts = setup();
-    let session_id = 1u32;
+    let hash = start(&ts, 1);
 
-    ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let game = ts.client.get_game(&session_id);
+    let game = ts.client.get_game(&1u32);
     assert_eq!(game.player1, ts.player1);
     assert_eq!(game.player2, ts.player2);
-    assert!(!game.player1_verified);
-    assert!(!game.player2_verified);
+    assert_eq!(game.treasure_hash, hash);
+    assert!(game.player1_energy.is_none());
+    assert!(game.player2_energy.is_none());
     assert!(!game.resolved);
-
-    // target_public_inputs must be 32 bytes and non-zero.
-    let target = game.target_public_inputs.to_array();
-    assert_ne!(target, [0u8; 32], "target should not be all-zero");
 }
 
 #[test]
-fn test_targets_differ_across_sessions() {
+fn test_get_treasure_hash_query() {
     let ts = setup();
-
-    ts.client
-        .start_game(&1u32, &ts.player1, &ts.player2, &POINTS, &POINTS);
-    ts.client
-        .start_game(&2u32, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let t1 = ts.client.get_target(&1u32);
-    let t2 = ts.client.get_target(&2u32);
-    assert_ne!(t1, t2, "different sessions must produce different targets");
+    let hash = start(&ts, 2);
+    assert_eq!(ts.client.get_treasure_hash(&2u32), hash);
 }
+
+#[test]
+fn test_different_sessions_have_independent_hashes() {
+    let ts = setup();
+    // Same hash supplied but sessions are independent objects in storage.
+    start(&ts, 10);
+    ts.client.start_game(
+        &11u32,
+        &ts.player1,
+        &ts.player2,
+        &POINTS,
+        &POINTS,
+        &BytesN::from_array(&ts.env, &[0xCCu8; 32]),
+    );
+    let h10 = ts.client.get_treasure_hash(&10u32);
+    let h11 = ts.client.get_treasure_hash(&11u32);
+    assert_ne!(h10, h11);
+}
+
+// ============================================================================
+// Winner Resolution — Single Player
+// ============================================================================
 
 #[test]
 fn test_player1_wins_solo() {
     let ts = setup();
-    let session_id = 10u32;
-
+    let hash = start(&ts, 20);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
     ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    let proof = valid_proof(&ts.env);
-
-    // Only player1 submits.
-    ts.client
-        .submit_proof(&session_id, &ts.player1, &proof, &pi);
-
-    let outcome = ts.client.resolve_game(&session_id);
-    assert_eq!(outcome, Outcome::Player1Won);
+        .submit_zk_proof(&20u32, &ts.player1, &valid_proof(&ts.env), &pi, &50u32);
+    assert_eq!(ts.client.resolve_game(&20u32), Outcome::Player1Won);
 }
 
 #[test]
 fn test_player2_wins_solo() {
     let ts = setup();
-    let session_id = 11u32;
-
+    let hash = start(&ts, 21);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
     ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    let proof = valid_proof(&ts.env);
-
-    // Only player2 submits.
-    ts.client
-        .submit_proof(&session_id, &ts.player2, &proof, &pi);
-
-    let outcome = ts.client.resolve_game(&session_id);
-    assert_eq!(outcome, Outcome::Player2Won);
-}
-
-#[test]
-fn test_both_win() {
-    let ts = setup();
-    let session_id = 12u32;
-
-    ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    let proof = valid_proof(&ts.env);
-
-    ts.client
-        .submit_proof(&session_id, &ts.player1, &proof, &pi);
-    ts.client
-        .submit_proof(&session_id, &ts.player2, &proof, &pi);
-
-    let outcome = ts.client.resolve_game(&session_id);
-    assert_eq!(outcome, Outcome::BothWon);
-}
-
-#[test]
-fn test_neither_wins_requires_at_least_one_submission() {
-    let ts = setup();
-    let session_id = 13u32;
-
-    ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    // No proof submitted → must fail with NeitherPlayerSubmitted.
-    let result = ts.client.try_resolve_game(&session_id);
-    assert_error(&result, Error::NeitherPlayerSubmitted);
+        .submit_zk_proof(&21u32, &ts.player2, &valid_proof(&ts.env), &pi, &50u32);
+    assert_eq!(ts.client.resolve_game(&21u32), Outcome::Player2Won);
 }
 
 // ============================================================================
-// Replay / Public-Input Mismatch Tests
+// Winner Resolution — Both Players (Energy Tiebreaker)
+// ============================================================================
+
+#[test]
+fn test_player1_wins_lower_energy() {
+    let ts = setup();
+    let hash = start(&ts, 30);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
+    ts.client
+        .submit_zk_proof(&30u32, &ts.player1, &valid_proof(&ts.env), &pi, &30u32);
+    ts.client
+        .submit_zk_proof(&30u32, &ts.player2, &valid_proof(&ts.env), &pi, &80u32);
+    assert_eq!(ts.client.resolve_game(&30u32), Outcome::Player1Won);
+}
+
+#[test]
+fn test_player2_wins_lower_energy() {
+    let ts = setup();
+    let hash = start(&ts, 31);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
+    ts.client
+        .submit_zk_proof(&31u32, &ts.player1, &valid_proof(&ts.env), &pi, &100u32);
+    ts.client
+        .submit_zk_proof(&31u32, &ts.player2, &valid_proof(&ts.env), &pi, &40u32);
+    assert_eq!(ts.client.resolve_game(&31u32), Outcome::Player2Won);
+}
+
+#[test]
+fn test_tie_energy_resolves_to_both_found() {
+    let ts = setup();
+    let hash = start(&ts, 32);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
+    ts.client
+        .submit_zk_proof(&32u32, &ts.player1, &valid_proof(&ts.env), &pi, &50u32);
+    ts.client
+        .submit_zk_proof(&32u32, &ts.player2, &valid_proof(&ts.env), &pi, &50u32);
+    assert_eq!(ts.client.resolve_game(&32u32), Outcome::BothFoundTreasure);
+}
+
+// ============================================================================
+// Replay & Input Validation
 // ============================================================================
 
 #[test]
 fn test_wrong_public_inputs_rejected() {
     let ts = setup();
-    let session_id = 20u32;
-
-    ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    // Craft public_inputs that are all-zero (wrong for any real session).
-    let wrong_pi = Bytes::from_array(&ts.env, &[0u8; 32]);
-    let proof = valid_proof(&ts.env);
-
-    let result = ts
-        .client
-        .try_submit_proof(&session_id, &ts.player1, &proof, &wrong_pi);
+    start(&ts, 40);
+    let wrong_pi = Bytes::from_array(&ts.env, &[0x00u8; 32]);
+    let result = ts.client.try_submit_zk_proof(
+        &40u32,
+        &ts.player1,
+        &valid_proof(&ts.env),
+        &wrong_pi,
+        &50u32,
+    );
     assert_error(&result, Error::PublicInputMismatch);
 }
 
 #[test]
 fn test_cross_session_replay_rejected() {
     let ts = setup();
-
-    // Start two sessions for the same players.
-    ts.client
-        .start_game(&30u32, &ts.player1, &ts.player2, &POINTS, &POINTS);
-    ts.client
-        .start_game(&31u32, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    // Retrieve session 30's target.
-    let pi_30 = get_public_inputs(&ts.client, &ts.env, 30u32);
-    let proof = valid_proof(&ts.env);
-
-    // Try to use session 30's public_inputs against session 31 → must fail.
-    let result = ts
-        .client
-        .try_submit_proof(&31u32, &ts.player1, &proof, &pi_30);
+    // Session 50 uses hash 0xAB; session 51 uses a different hash.
+    start(&ts, 50);
+    let hash50 = test_treasure_hash(&ts.env);
+    ts.client.start_game(
+        &51u32,
+        &ts.player1,
+        &ts.player2,
+        &POINTS,
+        &POINTS,
+        &BytesN::from_array(&ts.env, &[0xDDu8; 32]),
+    );
+    // Use session 50's hash against session 51 → mismatch.
+    let pi50 = treasure_hash_as_bytes(&ts.env, &hash50);
+    let result =
+        ts.client
+            .try_submit_zk_proof(&51u32, &ts.player1, &valid_proof(&ts.env), &pi50, &50u32);
     assert_error(&result, Error::PublicInputMismatch);
 }
 
 // ============================================================================
-// Double-Submission and Late-Submission Tests
+// Duplicate & Late Submission
 // ============================================================================
 
 #[test]
 fn test_cannot_submit_twice() {
     let ts = setup();
-    let session_id = 40u32;
-
+    let hash = start(&ts, 60);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
     ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    let proof = valid_proof(&ts.env);
-
-    ts.client
-        .submit_proof(&session_id, &ts.player1, &proof, &pi);
-
-    let result = ts
-        .client
-        .try_submit_proof(&session_id, &ts.player1, &proof, &pi);
-    assert_error(&result, Error::AlreadyVerified);
+        .submit_zk_proof(&60u32, &ts.player1, &valid_proof(&ts.env), &pi, &50u32);
+    let result =
+        ts.client
+            .try_submit_zk_proof(&60u32, &ts.player1, &valid_proof(&ts.env), &pi, &10u32);
+    assert_error(&result, Error::AlreadySubmitted);
 }
 
 #[test]
 fn test_cannot_submit_after_resolve() {
     let ts = setup();
-    let session_id = 41u32;
-
+    let hash = start(&ts, 61);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
     ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    let proof = valid_proof(&ts.env);
-
-    ts.client
-        .submit_proof(&session_id, &ts.player1, &proof, &pi);
-    ts.client.resolve_game(&session_id);
-
-    // Late submission after resolution.
-    let result = ts
-        .client
-        .try_submit_proof(&session_id, &ts.player2, &proof, &pi);
+        .submit_zk_proof(&61u32, &ts.player1, &valid_proof(&ts.env), &pi, &50u32);
+    ts.client.resolve_game(&61u32);
+    let result =
+        ts.client
+            .try_submit_zk_proof(&61u32, &ts.player2, &valid_proof(&ts.env), &pi, &50u32);
     assert_error(&result, Error::GameAlreadyResolved);
 }
 
 #[test]
+fn test_resolve_before_any_submission_errors() {
+    let ts = setup();
+    start(&ts, 62);
+    let result = ts.client.try_resolve_game(&62u32);
+    assert_error(&result, Error::NeitherPlayerSubmitted);
+}
+
+// ============================================================================
+// Idempotency
+// ============================================================================
+
+#[test]
 fn test_resolve_is_idempotent() {
     let ts = setup();
-    let session_id = 42u32;
-
+    let hash = start(&ts, 70);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
     ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    ts.client
-        .submit_proof(&session_id, &ts.player1, &valid_proof(&ts.env), &pi);
-
-    let first = ts.client.resolve_game(&session_id);
-    let second = ts.client.resolve_game(&session_id);
-    assert_eq!(first, second, "resolve_game must be idempotent");
+        .submit_zk_proof(&70u32, &ts.player1, &valid_proof(&ts.env), &pi, &50u32);
+    let first = ts.client.resolve_game(&70u32);
+    let second = ts.client.resolve_game(&70u32);
+    assert_eq!(first, second);
 }
 
 // ============================================================================
@@ -382,41 +364,42 @@ fn test_resolve_is_idempotent() {
 
 #[test]
 #[should_panic(expected = "verify_proof: invalid proof")]
-fn test_invalid_proof_traps() {
+fn test_invalid_proof_traps_transaction() {
     let ts = setup();
-    let session_id = 50u32;
-
+    let hash = start(&ts, 80);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
     ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    let bad_proof = invalid_proof(&ts.env);
-
-    // The mock verifier traps → the entire tx reverts.
-    ts.client
-        .submit_proof(&session_id, &ts.player1, &bad_proof, &pi);
+        .submit_zk_proof(&80u32, &ts.player1, &invalid_proof(&ts.env), &pi, &50u32);
 }
 
 // ============================================================================
-// Player Authorization Tests
+// Authorization
 // ============================================================================
 
 #[test]
 fn test_non_player_cannot_submit() {
     let ts = setup();
-    let session_id = 60u32;
-
-    ts.client
-        .start_game(&session_id, &ts.player1, &ts.player2, &POINTS, &POINTS);
-
-    let non_player = Address::generate(&ts.env);
-    let pi = get_public_inputs(&ts.client, &ts.env, session_id);
-    let proof = valid_proof(&ts.env);
-
-    let result = ts
-        .client
-        .try_submit_proof(&session_id, &non_player, &proof, &pi);
+    let hash = start(&ts, 90);
+    let pi = treasure_hash_as_bytes(&ts.env, &hash);
+    let outsider = Address::generate(&ts.env);
+    let result =
+        ts.client
+            .try_submit_zk_proof(&90u32, &outsider, &valid_proof(&ts.env), &pi, &50u32);
     assert_error(&result, Error::NotPlayer);
+}
+
+#[test]
+#[should_panic(expected = "Cannot play against yourself")]
+fn test_self_play_rejected() {
+    let ts = setup();
+    ts.client.start_game(
+        &99u32,
+        &ts.player1,
+        &ts.player1,
+        &POINTS,
+        &POINTS,
+        &test_treasure_hash(&ts.env),
+    );
 }
 
 // ============================================================================
@@ -426,42 +409,45 @@ fn test_non_player_cannot_submit() {
 #[test]
 fn test_multiple_sessions_independent() {
     let ts = setup();
-    let player3 = Address::generate(&ts.env);
-    let player4 = Address::generate(&ts.env);
+    let p3 = Address::generate(&ts.env);
+    let p4 = Address::generate(&ts.env);
+
+    let h1 = BytesN::from_array(&ts.env, &[0x11u8; 32]);
+    let h2 = BytesN::from_array(&ts.env, &[0x22u8; 32]);
 
     ts.client
-        .start_game(&70u32, &ts.player1, &ts.player2, &POINTS, &POINTS);
+        .start_game(&100u32, &ts.player1, &ts.player2, &POINTS, &POINTS, &h1);
     ts.client
-        .start_game(&71u32, &player3, &player4, &POINTS, &POINTS);
+        .start_game(&101u32, &p3, &p4, &POINTS, &POINTS, &h2);
 
-    let pi70 = get_public_inputs(&ts.client, &ts.env, 70u32);
-    let pi71 = get_public_inputs(&ts.client, &ts.env, 71u32);
-    let proof = valid_proof(&ts.env);
+    let pi1 = Bytes::from_array(&ts.env, &h1.to_array());
+    let pi2 = Bytes::from_array(&ts.env, &h2.to_array());
 
-    // Each session uses its own pi.
-    ts.client.submit_proof(&70u32, &ts.player1, &proof, &pi70);
-    ts.client.submit_proof(&71u32, &player4, &proof, &pi71);
+    ts.client
+        .submit_zk_proof(&100u32, &ts.player1, &valid_proof(&ts.env), &pi1, &10u32);
+    ts.client
+        .submit_zk_proof(&101u32, &p4, &valid_proof(&ts.env), &pi2, &5u32);
 
-    assert_eq!(ts.client.resolve_game(&70u32), Outcome::Player1Won);
-    assert_eq!(ts.client.resolve_game(&71u32), Outcome::Player2Won);
+    assert_eq!(ts.client.resolve_game(&100u32), Outcome::Player1Won);
+    assert_eq!(ts.client.resolve_game(&101u32), Outcome::Player2Won);
 }
 
 // ============================================================================
-// Admin Tests
+// Admin Functions
 // ============================================================================
+
+#[test]
+fn test_verifier_stored_and_queryable() {
+    let ts = setup();
+    assert_eq!(ts.client.get_verifier(), ts.verifier_addr);
+}
 
 #[test]
 fn test_admin_can_update_verifier() {
     let ts = setup();
-    let new_verifier = Address::generate(&ts.env);
-    ts.client.set_verifier(&new_verifier);
-    assert_eq!(ts.client.get_verifier(), new_verifier);
-}
-
-#[test]
-fn test_get_verifier_returns_constructor_value() {
-    let ts = setup();
-    assert_eq!(ts.client.get_verifier(), ts.verifier_addr);
+    let new_ver = Address::generate(&ts.env);
+    ts.client.set_verifier(&new_ver);
+    assert_eq!(ts.client.get_verifier(), new_ver);
 }
 
 #[test]
@@ -469,23 +455,11 @@ fn test_upgrade_function_exists() {
     let env = Env::default();
     env.mock_all_auths();
     let admin = Address::generate(&env);
-    let hub_addr = env.register(MockGameHub, ());
-    let verifier_addr = env.register(MockVerifier, ());
-    let contract_id = env.register(EatherGridContract, (&admin, &hub_addr, &verifier_addr));
-    let client = EatherGridContractClient::new(&env, &contract_id);
-
-    // Upgrade will fail because the dummy WASM hash does not exist in the ledger.
-    // That is expected — we're only verifying the function signature is correct
-    // and that it doesn't fail with NotAdmin.
-    let fake_hash = BytesN::from_array(&env, &[1u8; 32]);
-    let result = client.try_upgrade(&fake_hash);
+    let hub = env.register(MockGameHub, ());
+    let ver = env.register(MockVerifier, ());
+    let cid = env.register(EatherGridContract, (&admin, &hub, &ver));
+    let client = EatherGridContractClient::new(&env, &cid);
+    // Upgrade will fail (no WASM with that hash) — that is expected.
+    let result = client.try_upgrade(&BytesN::from_array(&env, &[1u8; 32]));
     assert!(result.is_err(), "upgrade with non-existent WASM must error");
-}
-
-#[test]
-#[should_panic(expected = "Cannot play against yourself")]
-fn test_self_play_rejected() {
-    let ts = setup();
-    ts.client
-        .start_game(&99u32, &ts.player1, &ts.player1, &POINTS, &POINTS);
 }

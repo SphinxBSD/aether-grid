@@ -22,6 +22,7 @@ export class AetherGridService {
       contractId: this.contractId,
       networkPassphrase: NETWORK_PASSPHRASE,
       rpcUrl: RPC_URL,
+      allowHttp: RPC_URL.startsWith('http://'),
     });
   }
 
@@ -36,6 +37,7 @@ export class AetherGridService {
       contractId: this.contractId,
       networkPassphrase: NETWORK_PASSPHRASE,
       rpcUrl: RPC_URL,
+      allowHttp: RPC_URL.startsWith('http://'),
       publicKey,
       ...signer,
     };
@@ -125,6 +127,7 @@ export class AetherGridService {
       contractId: this.contractId,
       networkPassphrase: NETWORK_PASSPHRASE,
       rpcUrl: RPC_URL,
+      allowHttp: RPC_URL.startsWith('http://'),
       publicKey: player2, // Player 2 is the transaction source
     });
 
@@ -360,6 +363,7 @@ export class AetherGridService {
       contractId: this.contractId,
       networkPassphrase: NETWORK_PASSPHRASE,
       rpcUrl: RPC_URL,
+      allowHttp: RPC_URL.startsWith('http://'),
       publicKey: player2Address, // Player 2 is the transaction source
     });
 

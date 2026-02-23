@@ -14,7 +14,7 @@ export async function calculateValidUntilLedger(
   rpcUrl: string,
   ttlMinutes: number
 ): Promise<number> {
-  const server = new rpc.Server(rpcUrl);
+  const server = new rpc.Server(rpcUrl, { allowHttp: rpcUrl.startsWith('http://') });
   const latestLedger = await server.getLatestLedger();
 
   // Stellar ledgers close approximately every 5 seconds
