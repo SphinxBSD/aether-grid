@@ -100,10 +100,10 @@ export function Layout({ children }: LayoutProps) {
           </ul>
           <footer className="appNav-footer">
             <span className="appNav-footer-text">
-              Hecho con mucho amor por{' '}
-              <a href="https://github.com/SphinxBSD" target="_blank" rel="noopener noreferrer" className="appNav-footer-link">SphinxBSD</a>
+              Built with ♥️ by{' '}
+              <a href="https://x.com/aleregex" target="_blank" rel="noopener noreferrer" className="appNav-footer-link">aleregex</a>
               {' · '}
-              <a href="https://github.com/aleregex" target="_blank" rel="noopener noreferrer" className="appNav-footer-link">aleregex</a>
+              <a href="https://github.com/SphinxBSD" target="_blank" rel="noopener noreferrer" className="appNav-footer-link">SphinxBSD</a>
             </span>
           </footer>
         </div>
