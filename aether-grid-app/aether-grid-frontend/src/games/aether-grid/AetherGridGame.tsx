@@ -215,13 +215,26 @@ export function AetherGridGame({
       if (!game) return;
 
       // Progress game phase based on ZK proof submission state.
-      // We only auto-advance past 'guess' if we're already in prove/resolve/complete.
-      // The 'guess' phase is controlled by the AetherGame board locally.
+      // Only the player who has already submitted their own proof (or both players
+      // have submitted) should be moved to 'resolve'. If only the *opponent* has
+      // submitted, the current player stays in 'guess'/'prove' so they can finish
+      // the board and generate their own proof. The opponent's status card in the
+      // combat UI is updated live via the polled `gameState` regardless.
       if (game.resolved) {
         setGamePhase('complete');
       } else if (game.player1_energy !== null || game.player2_energy !== null) {
-        // At least one player submitted — transition to resolve if we're not in 'prove'
-        setGamePhase((prev) => (prev === 'guess' || prev === 'prove' ? 'resolve' : prev));
+        const currentIsPlayer1 = game.player1 === userAddress;
+        const currentIsPlayer2 = game.player2 === userAddress;
+        const currentUserSubmitted =
+          (currentIsPlayer1 && game.player1_energy !== null) ||
+          (currentIsPlayer2 && game.player2_energy !== null);
+        const bothSubmitted = game.player1_energy !== null && game.player2_energy !== null;
+        // Move to resolve only when the current user has submitted, or if they are
+        // an observer (neither player 1 nor player 2), or when both players have submitted.
+        const shouldResolve = currentUserSubmitted || bothSubmitted || (!currentIsPlayer1 && !currentIsPlayer2);
+        if (shouldResolve) {
+          setGamePhase((prev) => (prev === 'guess' || prev === 'prove' ? 'resolve' : prev));
+        }
       }
 
       // Fetch treasure hash from on-chain if we don't have it yet
