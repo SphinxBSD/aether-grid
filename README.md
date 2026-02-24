@@ -126,7 +126,7 @@ bun run deploy:verifier
 bun run build:local
 bun run deploy:local
 
-# For the generic frontend:
+# For the Main Project frontend:
 bun run dev:game aether-grid
 
 # Or for the ZK specific frontend:
