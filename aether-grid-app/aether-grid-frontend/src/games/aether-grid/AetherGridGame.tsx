@@ -556,14 +556,15 @@ export function AetherGridGame({
         const placeholderP2Points = p1Points; // Same as P1 for simulation
 
         // Derive treasure position deterministically from sessionId and compute
-        // its Poseidon2 hash to commit on-chain. The nullifier is the session ID
+        // its Pedersen hash to commit on-chain. The nullifier is the session ID
         // itself (non-cryptographic; security can be improved later).
+        // pedersenHash(inputs, 0) === Noir's std::hash::pedersen_hash([x, y, nullifier])
         const tile = getHiddenObjectTileForSession(sessionId);
         const txX = Math.floor(tile.x);
         const txY = Math.floor(tile.y);
         const txNullifier = sessionId >>> 0; // u32
         const bbApi = await BarretenbergSync.initSingleton();
-        const hashFr = bbApi.poseidon2Hash([new Fr(BigInt(txX)), new Fr(BigInt(txY)), new Fr(BigInt(txNullifier))]);
+        const hashFr = bbApi.pedersenHash([new Fr(BigInt(txX)), new Fr(BigInt(txY)), new Fr(BigInt(txNullifier))], 0);
         const hashHex = hashFr.toString().replace(/^0x/, '').padStart(64, '0');
         const treasureHash = Buffer.from(hashHex, 'hex');
 
@@ -573,9 +574,14 @@ export function AetherGridGame({
         setTreasureY(txY);
         setTreasureNullifier(txNullifier);
 
+        // ── LOG: Input snapshot at game-start (Player 1 prepare) ─────────────
+        zkLog.snapshot('Game·Start·P1', { x: txX, y: txY, nullifier: txNullifier }, hashHex, {
+          sessionId, mode: 'prepare', player1: player1Address,
+        });
+        // ─────────────────────────────────────────────────────────────────────
+
         console.log('Preparing transaction for Player 1 to sign...');
         console.log('Using placeholder Player 2 values for simulation only');
-        console.log(`Treasure tile: (${txX}, ${txY}), nullifier: ${txNullifier}, hash: ${hashHex}`);
         const authEntryXDR = await aetherGridService.prepareStartGame(
           sessionId,
           player1Address,
@@ -712,13 +718,14 @@ export function AetherGridGame({
           player2AddressQuickstart,
         ]);
 
-        // Derive treasure position deterministically and compute Poseidon2 hash.
+        // Derive treasure position deterministically and compute Pedersen hash.
+        // pedersenHash(inputs, 0) === Noir's std::hash::pedersen_hash([x, y, nullifier])
         const qsTile = getHiddenObjectTileForSession(quickstartSessionId);
         const qsX = Math.floor(qsTile.x);
         const qsY = Math.floor(qsTile.y);
         const qsNullifier = quickstartSessionId >>> 0;
         const qsBbApi = await BarretenbergSync.initSingleton();
-        const qsHashFr = qsBbApi.poseidon2Hash([new Fr(BigInt(qsX)), new Fr(BigInt(qsY)), new Fr(BigInt(qsNullifier))]);
+        const qsHashFr = qsBbApi.pedersenHash([new Fr(BigInt(qsX)), new Fr(BigInt(qsY)), new Fr(BigInt(qsNullifier))], 0);
         const qsHashHex = qsHashFr.toString().replace(/^0x/, '').padStart(64, '0');
         const qsTreasureHash = Buffer.from(qsHashHex, 'hex');
 
@@ -728,6 +735,11 @@ export function AetherGridGame({
         setTreasureY(qsY);
         setTreasureNullifier(qsNullifier);
 
+        // ── LOG: Input snapshot at game-start (Quickstart) ───────────────────
+        zkLog.snapshot('Game·Start·Quickstart', { x: qsX, y: qsY, nullifier: qsNullifier }, qsHashHex, {
+          sessionId: quickstartSessionId, mode: 'quickstart',
+        });
+        // ─────────────────────────────────────────────────────────────────────
         console.log(`[Quickstart] Treasure tile: (${qsX}, ${qsY}), nullifier: ${qsNullifier}, hash: ${qsHashHex}`);
 
         const authEntryXDR = await aetherGridService.prepareStartGame(
@@ -824,16 +836,17 @@ export function AetherGridGame({
 
         // Player 2 must use the SAME treasure_hash that Player 1 committed.
         // Since the hash is deterministic (derived from session ID), we recompute it here.
+        // pedersenHash(inputs, 0) === Noir's std::hash::pedersen_hash([x, y, nullifier])
         const importedTile = getHiddenObjectTileForSession(gameParams.sessionId);
         const importedX = Math.floor(importedTile.x);
         const importedY = Math.floor(importedTile.y);
         const importedNullifier = gameParams.sessionId >>> 0;
         const importBbApi = await BarretenbergSync.initSingleton();
-        const importHashFr = importBbApi.poseidon2Hash([
+        const importHashFr = importBbApi.pedersenHash([
           new Fr(BigInt(importedX)),
           new Fr(BigInt(importedY)),
           new Fr(BigInt(importedNullifier)),
-        ]);
+        ], 0);
         const importHashHex = importHashFr.toString().replace(/^0x/, '').padStart(64, '0');
         const importTreasureHash = Buffer.from(importHashHex, 'hex');
 
@@ -843,6 +856,11 @@ export function AetherGridGame({
         setTreasureY(importedY);
         setTreasureNullifier(importedNullifier);
 
+        // ── LOG: Input snapshot at game-start (Player 2 import) ──────────────
+        zkLog.snapshot('Game·Start·P2', { x: importedX, y: importedY, nullifier: importedNullifier }, importHashHex, {
+          sessionId: gameParams.sessionId, mode: 'import', player2: userAddress,
+        });
+        // ─────────────────────────────────────────────────────────────────────
         console.log(`[Import] Treasure tile: (${importedX}, ${importedY}), nullifier: ${importedNullifier}, hash: ${importHashHex}`);
 
         // Step 1: Import Player 1's signed auth entry and rebuild transaction
@@ -953,9 +971,10 @@ export function AetherGridGame({
           setTreasureX(loadedX);
           setTreasureY(loadedY);
           setTreasureNullifier(loadedNullifier);
-          // Compute & store the hash so the ZkProofSection sees the correct public input.
+          // Compute & store the Pedersen hash so the ZkProofSection sees the correct public input.
+          // pedersenHash(inputs, 0) === Noir's std::hash::pedersen_hash([x, y, nullifier])
           BarretenbergSync.initSingleton().then((api) => {
-            const hFr = api.poseidon2Hash([new Fr(BigInt(loadedX)), new Fr(BigInt(loadedY)), new Fr(BigInt(loadedNullifier))]);
+            const hFr = api.pedersenHash([new Fr(BigInt(loadedX)), new Fr(BigInt(loadedY)), new Fr(BigInt(loadedNullifier))], 0);
             setTreasureHashHex(hFr.toString().replace(/^0x/, '').padStart(64, '0'));
           }).catch(console.error);
         }
@@ -1610,6 +1629,36 @@ export function AetherGridGame({
             onProofReady={(result) => {
               setPendingProof(result);
               setProofReady(true);
+
+              // ── LOG: Validate that all inputs are consistent ────────────────
+              // The critical invariant:
+              //   pedersenHash(x, y, nullifier) [computed at game-start]
+              //   === publicInputs[0] [returned by the Noir circuit]
+              //   === treasure_hash [stored on-chain]
+              const receivedPiHex = Array.from(result.publicInputsBuffer)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+
+              // 1. Snapshot of what we sent TO the circuit (from state)
+              zkLog.snapshot('Proof·Ready·InputCheck', {
+                x: treasureX,
+                y: treasureY,
+                nullifier: treasureNullifier,
+              }, treasureHashHex, {
+                sessionId,
+                boardEnergy: boardEnergyForProof,
+                proofByteLength: result.proofBytes.length,
+              });
+
+              // 2. Compare: committed hash vs. circuit public output
+              zkLog.compare(
+                'Proof·Ready·HashCheck',
+                'treasure_hash (game-start) vs publicInputs[0] (circuit output)',
+                treasureHashHex,
+                receivedPiHex,
+              );
+              // ───────────────────────────────────────────────────────────────
+
               // Auto-submit: no user action required
               handleSubmitProof(result);
             }}

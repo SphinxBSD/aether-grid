@@ -14,7 +14,7 @@ type ClientOptions = contract.ClientOptions;
  *
  * ## Contract changes (eather-grid based)
  * - `start_game` requires a 6th argument: `treasure_hash: BytesN<32>`
- *   = Poseidon2(x, y, nullifier) committed by the player who knows the
+ *   = pedersen_hash(x, y, nullifier) committed by the player who knows the
  *   canonical treasure coordinates.
  * - `make_guess` / `reveal_winner` are REMOVED.
  * - `submit_zk_proof(session_id, player, proof, public_inputs, energy_used)` is the submission mechanism.
@@ -106,10 +106,10 @@ export class AetherGridService {
    * STEP 1 (Player 1): Prepare a start_game transaction and export a signed
    * auth entry XDR for Player 2 to import.
    *
-   * The `treasureHash` is the 32-byte Poseidon2(x, y, nullifier) value that
+   * The `treasureHash` is the 32-byte pedersen_hash(x, y, nullifier) value that
    * will be stored on-chain and used to validate ZK proofs later.
    *
-   * @param treasureHash 32-byte Buffer — Poseidon2(x,y,nullifier) for this session.
+   * @param treasureHash 32-byte Buffer — pedersen_hash(x,y,nullifier) for this session.
    */
   async prepareStartGame(
     sessionId: number,
@@ -477,11 +477,65 @@ export class AetherGridService {
         DEFAULT_METHOD_OPTIONS.timeoutInSeconds,
         validUntilLedgerSeq
       );
-      if (sentTx.getTransactionResponse?.status === 'FAILED') {
-        const errorMessage = this.extractErrorFromDiagnostics(sentTx.getTransactionResponse);
+
+      // ── LOG: Full sentTx object for diagnosis ─────────────────────────────
+      const txStatus = (sentTx as any).getTransactionResponse?.status ?? 'undefined (possible simulation stub!)';
+      const txHash   = (sentTx as any).getTransactionResponse?.hash   ?? 'n/a';
+      zkLog.section('Service·submitZkProof · sentTx', {
+        txStatus,
+        txHash,
+        sentTxResult: (sentTx as any).result,
+        getTransactionResponse: (sentTx as any).getTransactionResponse,
+      });
+      zkLog.end();
+      // ─────────────────────────────────────────────────────────────────────
+
+      if ((sentTx as any).getTransactionResponse?.status === 'FAILED') {
+        const errorMessage = this.extractErrorFromDiagnostics((sentTx as any).getTransactionResponse);
         throw new Error(`Transaction failed: ${errorMessage}`);
       }
-      zkLog.success('Service·submitZkProof', `Proof submitted successfully for sessionId=${sessionId}`, sentTx.result);
+
+      zkLog.success('Service·submitZkProof', `Proof submitted (tx status=${txStatus}) for sessionId=${sessionId}`, sentTx.result);
+
+      // ── POST-SUBMISSION VERIFICATION: query on-chain state to confirm ─────
+      // The tx status may appear OK while the proof never actually landed
+      // (e.g. when the SDK falls back to simulation stub).
+      // Fetching the game state immediately after is the ground-truth check.
+      try {
+        const gameAfter = await this.baseClient.get_game({ session_id: sessionId }).then(t => t.simulate());
+        if (gameAfter.result.isOk()) {
+          const g = gameAfter.result.unwrap();
+          const isP1 = g.player1 === playerAddress;
+          const isP2 = g.player2 === playerAddress;
+          const energyRecorded = (isP1 && g.player1_energy != null) || (isP2 && g.player2_energy != null);
+          if (energyRecorded) {
+            zkLog.success('Service·submitZkProof', `✅ ON-CHAIN CONFIRMED: player_energy recorded for ${playerAddress}`, {
+              player1_energy: g.player1_energy,
+              player2_energy: g.player2_energy,
+            });
+          } else {
+            zkLog.warn(
+              'Service·submitZkProof',
+              '🚨 ON-CHAIN MISMATCH: tx appeared to succeed but player_energy is still null. ' +
+              'The submit_zk_proof transaction likely never landed on-chain (verifier rejected the proof, ' +
+              'or the SDK fell back to simulation stub without broadcasting).',
+              {
+                playerAddress,
+                player1: g.player1,
+                player1_energy: g.player1_energy,
+                player2: g.player2,
+                player2_energy: g.player2_energy,
+                txStatus,
+                txHash,
+              }
+            );
+          }
+        }
+      } catch (verifyErr) {
+        zkLog.warn('Service·submitZkProof', 'Could not fetch game state for post-submission check', verifyErr);
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       return sentTx.result;
     } catch (err) {
       if (err instanceof Error && err.message.includes('Transaction failed!')) {
@@ -524,8 +578,24 @@ export class AetherGridService {
         const errorMessage = this.extractErrorFromDiagnostics(sentTx.getTransactionResponse);
         throw new Error(`Transaction failed: ${errorMessage}`);
       }
-      zkLog.success('Service·resolveGame', `Game resolved for sessionId=${sessionId}`, sentTx.result);
-      return sentTx.result as Outcome;
+
+      // sentTx.result is Result<Outcome> (the SDK never auto-unwraps contract Result types).
+      // Unwrap it explicitly, mirroring how getGame uses result.result.isOk() / .unwrap().
+      const raw = sentTx.result as any;
+      let outcome: Outcome;
+      if (raw && typeof raw.isOk === 'function') {
+        if (!raw.isOk()) {
+          const errVal = raw.error ?? raw.unwrapErr?.() ?? 'unknown';
+          throw new Error(`resolve_game contract error: ${JSON.stringify(errVal)}`);
+        }
+        outcome = raw.unwrap() as Outcome;
+      } else {
+        // Fallback: result was already unwrapped (future SDK behaviour)
+        outcome = raw as Outcome;
+      }
+
+      zkLog.success('Service·resolveGame', `Game resolved for sessionId=${sessionId}`, outcome);
+      return outcome;
     } catch (err) {
       if (err instanceof Error && err.message.includes('Transaction failed!')) {
         throw new Error('Failed to resolve game — ensure at least one player has submitted a valid proof.');

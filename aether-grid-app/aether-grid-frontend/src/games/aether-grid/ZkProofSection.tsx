@@ -8,7 +8,7 @@ export interface ZkProofResult {
   /** Raw UltraHonk proof — pass directly as `proof: Bytes` to the contract. */
   proofBytes: Buffer;
   /**
-   * The Poseidon2 hash field extracted from the circuit's public outputs.
+   * The Pedersen hash field extracted from the circuit's public outputs.
    * Must equal the `treasure_hash` stored on-chain (32 bytes).
    */
   publicInputsBuffer: Buffer;

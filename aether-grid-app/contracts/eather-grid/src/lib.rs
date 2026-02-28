@@ -6,15 +6,14 @@
 //!
 //! ## Circuit (Noir)
 //! ```noir
-//! use dep::poseidon::poseidon2::Poseidon2;
 //! fn main(x: Field, y: Field, nullifier: Field, xy_nullifier_hashed: pub Field) {
-//!     let h: Field = Poseidon2::hash([x, y, nullifier], 3);
+//!     let h: Field = std::hash::pedersen_hash([x, y, nullifier]);
 //!     assert(h == xy_nullifier_hashed);
 //! }
 //! ```
 //! - `x`, `y`        → private treasure coordinates known only to the player.
 //! - `nullifier`     → private session-binding salt (see Nullifier Design below).
-//! - `xy_nullifier_hashed` → public output: `Poseidon2(x, y, nullifier)`.
+//! - `xy_nullifier_hashed` → public output: `pedersen_hash([x, y, nullifier])`.
 //!
 //! ## Nullifier Design
 //! To prevent cross-session replay, the frontend MUST derive the nullifier as:
@@ -26,7 +25,7 @@
 //! 1. Admin deploys UltraHonk verifier (VK embedded at compile time).
 //! 2. Admin deploys this contract with (`admin`, `game_hub`, `verifier`).
 //! 3. Frontend calls `start_game` and supplies `treasure_hash` =
-//!    the Poseidon2 hash that the treasure's canonical coordinates produce.
+//!    the Pedersen hash that the treasure's canonical coordinates produce.
 //! 4. Each player calls `submit_zk_proof(session_id, player, proof, public_inputs, energy_used)`.
 //!    - `public_inputs` must equal `game.treasure_hash`.
 //!    - `verifier.verify_proof` traps on failure; success records `energy_used`.
@@ -131,7 +130,7 @@ pub struct Game {
     pub player2: Address,
     pub player1_points: i128,
     pub player2_points: i128,
-    /// Poseidon2(x, y, nullifier) — the expected public input for this session.
+    /// pedersen_hash([x, y, nullifier]) — the expected public input for this session.
     ///
     /// Set at `start_game` by the frontend (which knows the canonical treasure
     /// coordinates and the session-specific nullifier).  Players must supply this
@@ -197,7 +196,7 @@ impl EatherGridContract {
 
     /// Start a new game between two players.
     ///
-    /// The frontend must supply `treasure_hash` = `Poseidon2(x, y, nullifier)`
+    /// The frontend must supply `treasure_hash` = `pedersen_hash([x, y, nullifier])`
     /// where `nullifier` is derived from session identity to prevent replay.
     ///
     /// Recommended nullifier construction (off-chain):
@@ -209,7 +208,7 @@ impl EatherGridContract {
     /// * `player2`        – Second player's address.
     /// * `player1_points` – Points committed by player 1.
     /// * `player2_points` – Points committed by player 2.
-    /// * `treasure_hash`  – Poseidon2 hash of the session's canonical coordinates.
+    /// * `treasure_hash`  – Pedersen hash of the session's canonical coordinates.
     pub fn start_game(
         env: Env,
         session_id: u32,

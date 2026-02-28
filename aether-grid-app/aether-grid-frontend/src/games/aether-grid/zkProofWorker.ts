@@ -22,7 +22,7 @@ export type WorkerRequest = {
   y: string;
   /** Private input: session-bound nullifier (hex string or decimal) */
   nullifier: string;
-  /** Public input: Poseidon2(x,y,nullifier) — must match game.treasure_hash */
+  /** Public input: pedersen_hash(x,y,nullifier) — must match game.treasure_hash */
   xy_nullifier_hashed: string;
 };
 
@@ -33,7 +33,7 @@ export type WorkerResponse =
       proofBytes: number[];
       /**
        * Public inputs as returned by Barretenberg.
-       * For this circuit there is exactly one: the Poseidon2 hash field.
+       * For this circuit there is exactly one: the Pedersen hash field.
        * Each entry is a 0x-prefixed hex string.
        */
       publicInputs: string[];

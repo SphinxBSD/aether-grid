@@ -92,4 +92,78 @@ export const zkLog = {
     console.log('%cPublic inputs (hex):', STYLES.data, '0x' + piHex);
     console.groupEnd();
   },
+
+  /**
+   * Logs a structured "snapshot" of all circuit inputs at a specific moment.
+   * Used to record what was committed at game-start and what the circuit received.
+   *
+   * @param tag     Log tag (e.g. 'Game·Start', 'ZkProofSection·Send')
+   * @param inputs  Private inputs: x, y, nullifier
+   * @param hashHex 64-char hex string — the expected public input (treasure_hash)
+   * @param context Optional extra context (sessionId, phase, etc.)
+   */
+  snapshot(
+    tag: string,
+    inputs: { x: number | string; y: number | string; nullifier: number | string },
+    hashHex: string,
+    context?: Record<string, unknown>,
+  ) {
+    const clean = hashHex.startsWith('0x') ? hashHex.slice(2) : hashHex;
+    console.groupCollapsed(`%c[ZK] [${tag}] 📸 Input Snapshot`, STYLES.section);
+    console.log('%c── Private inputs (never leave the browser) ──', STYLES.data);
+    console.log('%c  x         :', STYLES.data, inputs.x);
+    console.log('%c  y         :', STYLES.data, inputs.y);
+    console.log('%c  nullifier :', STYLES.data, inputs.nullifier);
+    console.log('%c── Public input (committed on-chain as treasure_hash) ──', STYLES.data);
+    console.log('%c  hex :', STYLES.data, '0x' + clean);
+    console.log('%c  dec :', STYLES.data, BigInt('0x' + clean.padStart(64, '0')).toString());
+    if (context) {
+      console.log('%c── Context ──', STYLES.data);
+      console.log('%c', STYLES.data, context);
+    }
+    console.groupEnd();
+  },
+
+  /**
+   * Side-by-side comparison of two hex values with a clear MATCH / MISMATCH verdict.
+   *
+   * The critical invariant for a successful ZK proof submission is:
+   *   pedersen_hash(x, y, nullifier) computed at game-start
+   *   === publicInputs[0] returned by the Noir circuit
+   *   === treasure_hash stored on-chain
+   *
+   * @param tag      Log tag
+   * @param label    Short description of what is being compared
+   * @param expected The value committed on-chain (treasureHashHex, game-start)
+   * @param received The value output by the circuit (publicInputsBuffer hex, proof-end)
+   */
+  compare(tag: string, label: string, expected: string, received: string) {
+    const clean = (h: string) => (h.startsWith('0x') ? h.slice(2) : h).toLowerCase().padStart(64, '0');
+    const exp = clean(expected);
+    const rec = clean(received);
+    const match = exp === rec;
+
+    if (match) {
+      console.groupCollapsed(`%c[ZK] [${tag}] ✅ MATCH — ${label}`, STYLES.success);
+    } else {
+      console.groupCollapsed(`%c[ZK] [${tag}] ❌ MISMATCH — ${label}`, STYLES.error);
+    }
+    console.log('%c  expected (on-chain / committed at game-start):', STYLES.data, '0x' + exp);
+    console.log('%c  received (circuit public output from proof)   :', STYLES.data, '0x' + rec);
+
+    if (!match) {
+      // Find first differing nibble for quick diagnosis
+      let firstDiff = -1;
+      for (let i = 0; i < Math.max(exp.length, rec.length); i++) {
+        if ((exp[i] ?? '?') !== (rec[i] ?? '?')) { firstDiff = i; break; }
+      }
+      console.error('%c  ⚠ First difference at nibble index:', STYLES.error, firstDiff);
+      console.error('%c  Possible causes:', STYLES.error);
+      console.error('%c    1) Different hash function (Poseidon2 vs Pedersen)', STYLES.error);
+      console.error('%c    2) Wrong inputs (x / y / nullifier mismatch)', STYLES.error);
+      console.error('%c    3) Wrong hashIndex in pedersenHash() — must be 0', STYLES.error);
+      console.error('%c    4) Stale treasureHashHex state (loaded from chain vs. freshly computed)', STYLES.error);
+    }
+    console.groupEnd();
+  },
 };
