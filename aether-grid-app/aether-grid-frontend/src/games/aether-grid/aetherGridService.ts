@@ -5,6 +5,7 @@ import { Buffer } from 'buffer';
 import { signAndSendViaLaunchtube } from '@/utils/transactionHelper';
 import { calculateValidUntilLedger } from '@/utils/ledgerUtils';
 import { injectSignedAuthEntry } from '@/utils/authEntryUtils';
+import { zkLog } from './zkLogger';
 
 type ClientOptions = contract.ClientOptions;
 
@@ -57,11 +58,21 @@ export class AetherGridService {
    */
   async getGame(sessionId: number): Promise<Game | null> {
     try {
+      zkLog.info('Service·getGame', `↻ Polling game state for sessionId=${sessionId}`);
       const tx = await this.baseClient.get_game({ session_id: sessionId });
       const result = await tx.simulate();
       if (result.result.isOk()) {
-        return result.result.unwrap();
+        const game = result.result.unwrap();
+        zkLog.info('Service·getGame', 'Game state received', {
+          player1:        game.player1,
+          player2:        game.player2,
+          player1_energy: game.player1_energy,
+          player2_energy: game.player2_energy,
+          resolved:       game.resolved,
+        });
+        return game;
       }
+      zkLog.warn('Service·getGame', `Result not OK for sessionId=${sessionId}`);
       return null;
     } catch {
       return null;
@@ -76,8 +87,11 @@ export class AetherGridService {
       const tx = await this.baseClient.get_treasure_hash({ session_id: sessionId });
       const result = await tx.simulate();
       if (result.result.isOk()) {
-        return result.result.unwrap() as Buffer;
+        const hash = result.result.unwrap() as Buffer;
+        zkLog.hex('Service·getTreasureHash', `on-chain treasure_hash for sessionId=${sessionId}`, hash);
+        return hash;
       }
+      zkLog.warn('Service·getTreasureHash', `No treasure hash found on-chain for sessionId=${sessionId}`);
       return null;
     } catch {
       return null;
@@ -428,6 +442,19 @@ export class AetherGridService {
     signer: Pick<contract.ClientOptions, 'signTransaction' | 'signAuthEntry'>,
     authTtlMinutes?: number
   ) {
+    // ── LOG: What are we about to send to the contract? ─────────────────────
+    zkLog.section('Service·submitZkProof', {
+      sessionId,
+      playerAddress,
+      proofByteLength:       proofBytes.length,
+      publicInputsByteLength: publicInputsBuffer.length,
+      energyUsed,
+    });
+    zkLog.hex('Service·submitZkProof', 'publicInputsBuffer (should match on-chain treasure_hash)', publicInputsBuffer);
+    zkLog.hex('Service·submitZkProof', 'proofBytes (first 32 bytes)', proofBytes.slice(0, 32));
+    zkLog.end();
+    // ─────────────────────────────────────────────────────────────────────
+
     const client = this.createSigningClient(playerAddress, signer);
 
     const tx = await client.submit_zk_proof({
@@ -442,6 +469,8 @@ export class AetherGridService {
       ? await calculateValidUntilLedger(RPC_URL, authTtlMinutes)
       : await calculateValidUntilLedger(RPC_URL, DEFAULT_AUTH_TTL_MINUTES);
 
+    zkLog.info('Service·submitZkProof', `validUntilLedger=${validUntilLedgerSeq} — broadcasting via Launchtube…`);
+
     try {
       const sentTx = await signAndSendViaLaunchtube(
         tx,
@@ -452,6 +481,7 @@ export class AetherGridService {
         const errorMessage = this.extractErrorFromDiagnostics(sentTx.getTransactionResponse);
         throw new Error(`Transaction failed: ${errorMessage}`);
       }
+      zkLog.success('Service·submitZkProof', `Proof submitted successfully for sessionId=${sessionId}`, sentTx.result);
       return sentTx.result;
     } catch (err) {
       if (err instanceof Error && err.message.includes('Transaction failed!')) {
@@ -476,6 +506,7 @@ export class AetherGridService {
     signer: Pick<contract.ClientOptions, 'signTransaction' | 'signAuthEntry'>,
     authTtlMinutes?: number
   ): Promise<Outcome> {
+    zkLog.info('Service·resolveGame', `Resolving game sessionId=${sessionId} caller=${callerAddress}`);
     const client = this.createSigningClient(callerAddress, signer);
     const tx = await client.resolve_game({ session_id: sessionId }, DEFAULT_METHOD_OPTIONS);
 
@@ -493,6 +524,7 @@ export class AetherGridService {
         const errorMessage = this.extractErrorFromDiagnostics(sentTx.getTransactionResponse);
         throw new Error(`Transaction failed: ${errorMessage}`);
       }
+      zkLog.success('Service·resolveGame', `Game resolved for sessionId=${sessionId}`, sentTx.result);
       return sentTx.result as Outcome;
     } catch (err) {
       if (err instanceof Error && err.message.includes('Transaction failed!')) {

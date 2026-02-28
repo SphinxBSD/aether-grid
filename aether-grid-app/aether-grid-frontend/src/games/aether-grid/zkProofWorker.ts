@@ -47,6 +47,18 @@ export type WorkerResponse =
       message: string;
     };
 
+// ── Worker-side logger (uses console directly; no DOM access needed) ──────────
+const wLog = {
+  info:  (msg: string, data?: unknown) => data !== undefined
+    ? console.log(`%c[ZK·Worker] ${msg}`, 'color:#60a5fa;font-weight:bold;', data)
+    : console.log(`%c[ZK·Worker] ${msg}`, 'color:#60a5fa;font-weight:bold;'),
+  ok:    (msg: string, data?: unknown) => data !== undefined
+    ? console.log(`%c[ZK·Worker] ✅ ${msg}`, 'color:#34d399;font-weight:bold;', data)
+    : console.log(`%c[ZK·Worker] ✅ ${msg}`, 'color:#34d399;font-weight:bold;'),
+  err:   (msg: string, err?: unknown) =>
+    console.error(`%c[ZK·Worker] ❌ ${msg}`, 'color:#f87171;font-weight:bold;', err ?? ''),
+};
+
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const { type, x, y, nullifier, xy_nullifier_hashed } = event.data;
 
@@ -54,11 +66,18 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
   const post = (msg: WorkerResponse) => self.postMessage(msg);
 
+  // ── LOG: What did the worker receive? ──────────────────────────────────────
+  console.groupCollapsed('%c[ZK·Worker] ══ Received GENERATE_PROOF ══', 'color:#a78bfa;font-weight:bold;font-size:13px;');
+  wLog.info('Private inputs sent to Noir circuit:', { x, y, nullifier, xy_nullifier_hashed });
+  console.groupEnd();
+  // ──────────────────────────────────────────────────────────────────────────
+
   try {
     post({ type: 'STATUS', message: 'Initialising Barretenberg WASM…' });
 
     // Use hardware concurrency for multi-threading; fall back to 1 thread.
     const threads = (navigator as any).hardwareConcurrency || 1;
+    wLog.info(`Using ${threads} thread(s) for Barretenberg WASM`);
 
     /**
      * In @aztec/bb.js 0.87.0, UltraHonkBackend manages the Barretenberg
@@ -67,6 +86,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
      */
     const honk = new UltraHonkBackend(circuit.bytecode, { threads });
     const noir = new Noir(circuit as any);
+    wLog.info('UltraHonkBackend + Noir instances created');
 
     post({ type: 'STATUS', message: 'Computing witness…' });
 
@@ -76,8 +96,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       nullifier,
       xy_nullifier_hashed,
     });
+    wLog.ok('Witness computed', { witnessSize: witness?.length ?? 'n/a' });
 
     post({ type: 'STATUS', message: 'Generating UltraHonk proof… (this may take 10-30 s)' });
+    wLog.info('Starting honk.generateProof({ keccak: true })…');
 
     /**
      * IMPORTANT: pass `{ keccak: true }` to match the on-chain Soroban verifier,
@@ -91,8 +113,18 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
      */
     const { proof, publicInputs } = await honk.generateProof(witness, { keccak: true });
 
+    // ── LOG: Proof generated ────────────────────────────────────────────────
+    const proofHex = Array.from(proof).map(b => b.toString(16).padStart(2, '0')).join('');
+    console.groupCollapsed('%c[ZK·Worker] ✅ Proof generated', 'color:#34d399;font-weight:bold;font-size:13px;');
+    wLog.ok(`Proof size: ${proof.length} bytes`);
+    wLog.info('Proof hex (first 64 chars):', '0x' + proofHex.slice(0, 64) + '…');
+    wLog.info('Public inputs (raw from Barretenberg):', publicInputs);
+    console.groupEnd();
+    // ────────────────────────────────────────────────────────────────────────
+
     // Destroy the backend to free WASM memory
     await honk.destroy();
+    wLog.info('honk.destroy() called — WASM memory freed');
 
     post({
       type: 'PROOF_READY',
@@ -100,6 +132,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       publicInputs,
     });
   } catch (err: any) {
+    wLog.err('Exception during proof generation', err);
     post({ type: 'ERROR', message: err?.message ?? String(err) });
   }
 };

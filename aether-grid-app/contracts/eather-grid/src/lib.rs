@@ -366,6 +366,13 @@ impl EatherGridContract {
             .temporary()
             .extend_ttl(&key, GAME_TTL_LEDGERS, GAME_TTL_LEDGERS);
 
+        // Emit an event so the Soroban SDK correctly recognizes this as a state-mutating transaction
+        // instead of silently skipping submission in `isStillReadOnly` fallback.
+        env.events().publish(
+            (soroban_sdk::symbol_short!("submit"), session_id),
+            energy_used,
+        );
+
         Ok(())
     }
 

@@ -19,6 +19,7 @@ import { useGameRoleStore } from '@/stores/gameRoleStore';
 import { ZkProofSection } from './ZkProofSection';
 import type { ZkProofResult } from './ZkProofSection';
 import type { Game, Outcome } from './bindings';
+import { zkLog } from './zkLogger';
 
 /** Convert a Buffer (32 bytes) to a hex string without 0x prefix. */
 function bufferToHex(buf: Buffer): string {
@@ -1042,6 +1043,19 @@ export function AetherGridGame({
       return;
     }
 
+    // ── LOG: Board finished ────────────────────────────────────────────────
+    zkLog.section('AetherGridGame · handleBoardFinish', {
+      energyUsedOnBoard: energy,
+      playerNumber:      currentPlayerNum,
+      sessionId,
+      treasureX,
+      treasureY,
+      treasureNullifier,
+      treasureHashHex,
+    });
+    zkLog.end();
+    // ───────────────────────────────────────────────────────────────────
+
     setError(null);
     setBoardEnergyForProof(energy);
     setGamePhase('prove');
@@ -1055,6 +1069,22 @@ export function AetherGridGame({
         setError(null);
         setSuccess(null);
 
+        // ── LOG: Proof received from ZkProofSection ────────────────────────
+        zkLog.section('AetherGridGame · handleSubmitProof — pre-flight check', {
+          sessionId,
+          userAddress,
+          boardEnergyForProof,
+          proofByteLength:        proof.proofBytes.length,
+          publicInputsByteLength: proof.publicInputsBuffer.length,
+          localTreasureHashHex:   treasureHashHex,
+          treasureX,
+          treasureY,
+          treasureNullifier,
+        });
+        zkLog.hex('AetherGridGame·handleSubmitProof', 'publicInputsBuffer being sent', proof.publicInputsBuffer);
+        zkLog.end();
+        // ───────────────────────────────────────────────────────────────────
+
         // Check if already submitted
         requestCache.invalidate(createCacheKey('game-state', sessionId));
         const fresh = await aetherGridService.getGame(sessionId);
@@ -1063,6 +1093,7 @@ export function AetherGridGame({
           ((fresh.player1 === userAddress && fresh.player1_energy != null) ||
             (fresh.player2 === userAddress && fresh.player2_energy != null));
         if (alreadySubmitted) {
+          zkLog.warn('AetherGridGame·handleSubmitProof', 'Already submitted — skipping re-submission');
           await loadGameState();
           setLoading(false);
           return;
@@ -1078,6 +1109,7 @@ export function AetherGridGame({
           signer
         );
 
+        zkLog.success('AetherGridGame·handleSubmitProof', 'ZK proof submitted on-chain! Transitioning to resolve phase.');
         setProofSubmitted(true);
         requestCache.invalidate(createCacheKey('game-state', sessionId));
         await loadGameState();
@@ -1086,6 +1118,7 @@ export function AetherGridGame({
         setTimeout(() => setSuccess(null), 4000);
       } catch (err) {
         console.error('ZK proof submission error:', err);
+        zkLog.error('AetherGridGame·handleSubmitProof', 'Submission error', err);
         const msg = err instanceof Error ? err.message : String(err);
         const isAlready = msg.includes('AlreadySubmitted') || msg.includes('Contract, #3');
         setError(

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Buffer } from 'buffer';
+import { zkLog } from './zkLogger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,18 @@ export function ZkProofSection({
       : treasureHash;
     const hashDecimal = BigInt('0x' + hashHex.padStart(64, '0')).toString();
 
+    // ── LOG: ZkProofSection — sending inputs to worker ──────────────────────
+    zkLog.section('ZkProofSection · handleGenerate', {
+      'x (treasure coord)':        Math.floor(x),
+      'y (treasure coord)':        Math.floor(y),
+      'nullifier (sessionId u32)': Math.floor(nullifier),
+      'treasureHash (hex)':        '0x' + hashHex,
+      'xy_nullifier_hashed (dec)': hashDecimal,
+      'boardEnergy':               boardEnergy,
+    });
+    zkLog.end();
+    // ────────────────────────────────────────────────────────────────────────
+
     worker.onmessage = (event) => {
       const data = event.data;
 
@@ -119,6 +132,7 @@ export function ZkProofSection({
         const key = Object.keys(map).find(k => data.message.startsWith(k));
         if (key) setStatus(map[key]);
         setStatusMessage(data.message);
+        zkLog.info('Worker·STATUS', data.message);
         return;
       }
 
@@ -144,6 +158,12 @@ export function ZkProofSection({
         const pi = data.publicInputs[0] ?? '';
         const publicInputsBuffer = hexTo32Bytes(pi);
 
+        // ── LOG: Proof ready — inspect before sending to contract ────────────
+        zkLog.proofSummary('ZkProofSection·PROOF_READY', proofBytes, publicInputsBuffer);
+        zkLog.info('ZkProofSection·PROOF_READY', 'publicInputs array from worker', data.publicInputs);
+        zkLog.info('ZkProofSection·PROOF_READY', 'Calling onProofReady → handleSubmitProof will pick this up');
+        // ────────────────────────────────────────────────────────────────────
+
         onProofReady({ proofBytes, publicInputsBuffer });
         return;
       }
@@ -153,6 +173,7 @@ export function ZkProofSection({
         setError(data.message);
         worker.terminate();
         workerRef.current = null;
+        zkLog.error('Worker·ERROR', data.message);
       }
     };
 
@@ -161,6 +182,7 @@ export function ZkProofSection({
       setError(e.message);
       worker.terminate();
       workerRef.current = null;
+      zkLog.error('Worker·onerror', 'Uncaught worker error', e);
     };
 
     worker.postMessage({

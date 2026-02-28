@@ -663,7 +663,12 @@ export function EatherGridGame({
         onStandingsRefresh();
         setTimeout(() => setSuccess(null), 4000);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to submit ZK proof');
+        const msg = err instanceof Error ? err.message : 'Failed to submit ZK proof';
+        if (msg.includes('PublicInputMismatch') || msg.includes('#6')) {
+          setError('Los datos públicos enviados no coinciden con el compromiso original del tesoro para esta partida.');
+        } else {
+          setError(msg);
+        }
       } finally {
         setLoading(false);
       }
