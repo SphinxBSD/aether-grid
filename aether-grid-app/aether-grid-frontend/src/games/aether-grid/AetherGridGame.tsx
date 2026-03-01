@@ -107,6 +107,7 @@ export function AetherGridGame({
   const [proofReady, setProofReady] = useState(false);
   const [pendingProof, setPendingProof] = useState<ZkProofResult | null>(null);
   const [proofSubmitted, setProofSubmitted] = useState(false);
+  const [showProofApproval, setShowProofApproval] = useState(false);
   // Treasure private inputs — generated at game-creation time
   const [treasureX, setTreasureX] = useState(0);
   const [treasureY, setTreasureY] = useState(0);
@@ -192,6 +193,7 @@ export function AetherGridGame({
     setTreasureX(0);
     setTreasureY(0);
     setTreasureNullifier(0);
+    setShowProofApproval(false);
   };
 
   const parsePoints = (value: string): bigint | null => {
@@ -315,9 +317,11 @@ export function AetherGridGame({
     if (gamePhase !== 'guess' || !sessionId) return;
     const key = `${sessionId}-${userAddress}`;
     if (lastGuessInitRef.current === key) return;
-    lastGuessInitRef.current = key;
     const gameStateCurrent = gameStateRef.current;
     if (!gameStateCurrent) return;
+    // Only lock the key once we can actually initialize — prevents permanent
+    // blocking when gameState arrives later (e.g. after import flow).
+    lastGuessInitRef.current = key;
     const playerNumber = gameStateCurrent.player1 === userAddress ? 1 : 2;
     const restored = restoreSessionState(sessionId, playerNumber);
     const store = useAetherGameStore.getState();
@@ -368,6 +372,20 @@ export function AetherGridGame({
               setGameState(game);
               setGamePhase('guess');
               setSessionId(sessionId); // Set session ID for the game
+
+              // Compute treasure private inputs deterministically from sessionId so the
+              // prove phase has the correct ZK inputs (same derivation as game creation).
+              const dlTile = getHiddenObjectTileForSession(sessionId);
+              const dlX = Math.floor(dlTile.x);
+              const dlY = Math.floor(dlTile.y);
+              const dlNullifier = sessionId >>> 0;
+              setTreasureX(dlX);
+              setTreasureY(dlY);
+              setTreasureNullifier(dlNullifier);
+              BarretenbergSync.initSingleton().then((api) => {
+                const hFr = api.pedersenHash([new Fr(BigInt(dlX)), new Fr(BigInt(dlY)), new Fr(BigInt(dlNullifier))], 0);
+                setTreasureHashHex(hFr.toString().replace(/^0x/, '').padStart(64, '0'));
+              }).catch(console.error);
             } else {
               // Game doesn't exist yet, go to import mode
               console.log('[Deep Link] Game not found, entering import mode');
@@ -432,6 +450,20 @@ export function AetherGridGame({
               setGameState(game);
               setGamePhase('guess');
               setSessionId(sessionId); // Set session ID for the game
+
+              // Compute treasure private inputs deterministically from sessionId so the
+              // prove phase has the correct ZK inputs (same derivation as game creation).
+              const dlTile = getHiddenObjectTileForSession(sessionId);
+              const dlX = Math.floor(dlTile.x);
+              const dlY = Math.floor(dlTile.y);
+              const dlNullifier = sessionId >>> 0;
+              setTreasureX(dlX);
+              setTreasureY(dlY);
+              setTreasureNullifier(dlNullifier);
+              BarretenbergSync.initSingleton().then((api) => {
+                const hFr = api.pedersenHash([new Fr(BigInt(dlX)), new Fr(BigInt(dlY)), new Fr(BigInt(dlNullifier))], 0);
+                setTreasureHashHex(hFr.toString().replace(/^0x/, '').padStart(64, '0'));
+              }).catch(console.error);
             } else {
               // Game doesn't exist yet, go to import mode
               console.log('[Deep Link] Game not found (URL), entering import mode');
@@ -1241,10 +1273,10 @@ export function AetherGridGame({
         <div className="aether-grid-combat__ui aether-grid-combat__ui--left" aria-label="Player 1">
           <div className="aether-grid-combat-card aether-grid-combat-card--player1">
             <div className="aether-grid-combat-card__header">PLAYER 1</div>
-            {/* <div className="aether-grid-combat-card__section">
-              <div className="aether-grid-combat-card__label">Session</div>
+            <div className="aether-grid-combat-card__section">
+              <div className="aether-grid-combat-card__label">Session ID</div>
               <div className="aether-grid-combat-card__value aether-grid-combat-card__value--cyan">{sessionId}</div>
-            </div> */}
+            </div>
             {error && (
               <div className="aether-grid-combat-card__section">
                 <p className="aether-grid-combat-msg aether-grid-combat-msg--error">{error}</p>
@@ -1659,12 +1691,29 @@ export function AetherGridGame({
               );
               // ───────────────────────────────────────────────────────────────
 
-              // Auto-submit: no user action required
-              handleSubmitProof(result);
+              // Show approval UI — user must click to submit
+              setShowProofApproval(true);
             }}
             disabled={loading}
           />
-          {loading && (
+
+          {/* Submit proof — only shown after proof generation completes */}
+          {showProofApproval && proofReady && pendingProof && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-center text-green-700 font-semibold">
+                ✅ Proof ready! Review the details above, then submit it on-chain.
+              </p>
+              <button
+                onClick={() => handleSubmitProof(pendingProof)}
+                disabled={loading}
+                className="aether-create-btn aether-create-btn--primary w-full"
+              >
+                {loading ? '⏳ Submitting proof on-chain…' : '🚀 Submit ZK Proof On-Chain'}
+              </button>
+            </div>
+          )}
+
+          {loading && !(showProofApproval && proofReady) && (
             <p className="text-xs text-center text-indigo-600 font-semibold mt-3 animate-pulse">
               ⏳ Submitting proof on-chain…
             </p>
